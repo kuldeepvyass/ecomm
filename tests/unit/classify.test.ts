@@ -35,3 +35,21 @@ describe("dataset value normalisers", () => {
     expect(tidyLabel("chronograph")).toBe("Chronograph");
   });
 });
+
+describe("dataset values", () => {
+  it("groups watch types into filterable categories", async () => {
+    const { watchTypeOf } = await import("@/lib/catalog/classify");
+    expect(watchTypeOf("Analogue")).toBe("Analog");
+    expect(watchTypeOf("Analogue (multifunction)")).toBe("Multifunction");
+    expect(watchTypeOf("Analogue / chronograph")).toBe("Chronograph");
+    expect(watchTypeOf("Smartwatch (GPS outdoor)")).toBe("Smartwatch");
+    expect(watchTypeOf("")).toBeNull();
+  });
+  it("treats rechargeable as smart, solar-rechargeable as solar", async () => {
+    const { normalizeMovement } = await import("@/lib/catalog/classify");
+    expect(normalizeMovement("Rechargeable battery")).toBe("SMART");
+    expect(normalizeMovement("Solar + rechargeable")).toBe("SOLAR");
+    expect(normalizeMovement("Swiss quartz")).toBe("QUARTZ");
+    expect(normalizeMovement("Swiss automatic")).toBe("AUTOMATIC");
+  });
+});

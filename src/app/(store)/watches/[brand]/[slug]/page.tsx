@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/misc";
 import { getProductBySlug, getRelatedProducts } from "@/server/catalog/queries";
 import { listReviews } from "@/server/reviews/queries";
 import { getSettings } from "@/server/settings";
+import { nameWithRef } from "@/lib/text";
 
 export const revalidate = 3600;
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/watches/[brand]/[
   const { slug } = await params;
   const p = await getProductBySlug(slug);
   if (!p) return {};
-  const title = p.seoTitle ?? `${p.brand.name} ${p.modelName} ${p.referenceNumber}`;
+  const title = p.seoTitle ?? `${p.brand.name} ${nameWithRef(p.modelName, p.referenceNumber)}`;
   const description = p.seoDescription ?? p.description.slice(0, 155);
   const url = `/watches/${p.brand.slug}/${p.slug}`;
   return {

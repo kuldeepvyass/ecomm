@@ -5,8 +5,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { TAGS } from "@/lib/cache-tags";
 import { priceFor } from "@/lib/pricing";
-import { firstNumber, normalizeGender, normalizeMovement, parseWarrantyMonths, parseWaterResistanceM, strapTypeOf, tidyLabel } from "@/lib/catalog/classify";
-import { buildSearchText, sanitizeText, slugify } from "@/lib/text";
+import { firstNumber, normalizeGender, normalizeMovement, parseWarrantyMonths, parseWaterResistanceM, strapTypeOf, tidyLabel, watchTypeOf } from "@/lib/catalog/classify";
+import { buildSearchText, nameWithRef, sanitizeText, slugify } from "@/lib/text";
 
 type Tx = Prisma.TransactionClient;
 
@@ -49,7 +49,7 @@ export const productInputSchema = z
     weightGrams: optInt(1, 2000),
     warrantyMonths: z.preprocess((v) => (typeof v === "string" ? (v.trim() === "" ? null : parseWarrantyMonths(v)) : v ?? null), z.coerce.number().int().min(0).max(240).nullable()),
     series: optStr(120),
-    watchType: z.preprocess((v) => (typeof v === "string" ? tidyLabel(v) : v), z.string().max(40).nullable().optional()),
+    watchType: z.preprocess((v) => (typeof v === "string" ? watchTypeOf(v) : v), z.string().max(40).nullable().optional()),
     caseShape: z.preprocess((v) => (typeof v === "string" ? tidyLabel(v) : v), z.string().max(40).nullable().optional()),
     functions: optStr(300),
     specialFeatures: optStr(200),
@@ -149,7 +149,7 @@ export async function writeProduct(
 
   const modelName = (fields.modelName as string | undefined) ?? existing!.modelName;
   const referenceNumber = (fields.referenceNumber as string | undefined) ?? existing!.referenceNumber;
-  const slug = existing && !(pick("slug") && input.slug) ? existing.slug : await uniqueSlug(tx, input.slug || `${modelName}-${referenceNumber}`, existing?.id);
+  const slug = existing && !(pick("slug") && input.slug) ? existing.slug : await uniqueSlug(tx, input.slug || nameWithRef(modelName, referenceNumber), existing?.id);
 
   const data = {
     ...(fields as object),

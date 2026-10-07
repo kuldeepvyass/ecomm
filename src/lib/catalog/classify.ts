@@ -14,8 +14,9 @@ export const MOVEMENT_LABEL: Record<MovementValue, string> = {
 export function normalizeMovement(input: string | null | undefined): MovementValue | null {
   const t = (input ?? "").toLowerCase().trim();
   if (!t) return null;
-  if (/\bsmart|hybrid|connected|wear\s?os/.test(t)) return "SMART";
   if (/solar|eco[-\s]?drive|light[-\s]?powered/.test(t)) return "SOLAR";
+  // Only smartwatches are "rechargeable" (solar-rechargeable is caught above).
+  if (/\bsmart|hybrid|connected|wear\s?os|rechargeable/.test(t)) return "SMART";
   if (/kinetic|automatic quartz|auto[-\s]?quartz/.test(t)) return "KINETIC";
   if (/automatic|self[-\s]?wind|auto\b|mechanical automatic/.test(t)) return "AUTOMATIC";
   if (/manual|hand[-\s]?wo?und|hand[-\s]?wind|mechanical/.test(t)) return "MANUAL";
@@ -42,6 +43,27 @@ export function strapTypeOf(input: string | null | undefined): string {
   if (/ceramic/.test(t)) return "Ceramic";
   if (/bracelet|steel|metal|gold|titanium|link|chain/.test(t)) return "Metal bracelet";
   return t ? "Other" : "";
+}
+
+/**
+ * Free-text watch type → one filterable category, so "Analogue (multifunction)" and
+ * "Smartwatch (GPS outdoor)" don't splinter the Type filter into near-duplicates.
+ */
+export function watchTypeOf(input: string | null | undefined): string | null {
+  const t = (input ?? "").toLowerCase().trim();
+  if (!t) return null;
+  if (/smart|gps|fitness|connected|hybrid/.test(t)) return "Smartwatch";
+  if (/chrono/.test(t)) return "Chronograph";
+  if (/div(e|er|ing)/.test(t)) return "Diver";
+  if (/skeleton|squelette|open[-\s]?heart/.test(t)) return "Skeleton";
+  if (/multi[-\s]?function|day[-\s]?date/.test(t)) return "Multifunction";
+  if (/ana\w*[-\s/]+digi|digi\w*[-\s/]+ana|ana-digi/.test(t)) return "Analog-digital";
+  if (/digital/.test(t)) return "Digital";
+  if (/dress/.test(t)) return "Dress";
+  if (/pilot|aviat/.test(t)) return "Pilot";
+  if (/field|military/.test(t)) return "Field";
+  if (/analog/.test(t)) return "Analog";
+  return tidyLabel(input);
 }
 
 /** First number in a string: "45.0" → 45, "12 mm" → 12. */
