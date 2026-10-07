@@ -24,7 +24,7 @@ export type ProductCardData = {
   featured: boolean;
 };
 
-export type SortKey = "relevance" | "newest" | "price_asc" | "price_desc" | "rating" | "popular";
+export type SortKey = "relevance" | "recommended" | "newest" | "price_asc" | "price_desc" | "rating" | "popular";
 
 export type ListingFilters = {
   q?: string;

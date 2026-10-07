@@ -348,6 +348,9 @@ model Product {
 
   isDemo    Boolean   @default(false)
   deletedAt DateTime? // soft delete (restorable)
+  /// GENERATED ALWAYS in SQL (see migration recommended_rank) — never written by the app.
+  /// Analog > smart, featured, automatic/manual, rating ≥ 4.5. Drives the default "Recommended" sort.
+  rankScore Int @default(dbgenerated())
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

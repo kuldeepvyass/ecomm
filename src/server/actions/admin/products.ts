@@ -50,7 +50,7 @@ export async function duplicateProduct(id: string): Promise<ActionResult<{ id: s
     const suffix = Date.now().toString(36).toUpperCase();
     const copy = await db.product.create({
       data: {
-        ...Object.fromEntries(Object.entries(p).filter(([k]) => !["id", "images", "collections", "createdAt", "updatedAt", "ratingAvg", "ratingCount", "ratingDist", "viewCount", "soldCount", "deletedAt"].includes(k))),
+        ...Object.fromEntries(Object.entries(p).filter(([k]) => !["id", "images", "collections", "createdAt", "updatedAt", "ratingAvg", "ratingCount", "ratingDist", "viewCount", "soldCount", "deletedAt", "rankScore"].includes(k))),
         sku: `${p.sku}-COPY-${suffix}`.slice(0, 64),
         slug: `${p.slug}-copy-${suffix.toLowerCase()}`,
         referenceNumber: `${p.referenceNumber}-COPY-${suffix}`.slice(0, 64),

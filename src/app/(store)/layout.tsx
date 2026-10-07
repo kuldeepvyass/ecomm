@@ -16,7 +16,8 @@ export default async function StoreLayout({ children }: LayoutProps<"/">) {
       <SiteFooter />
       <BottomNav />
       <WhatsAppButton number={settings.whatsappNumber} />
-      <CookieConsent />
+      {/* E2E shows it at once so tests can exercise and dismiss it. */}
+      <CookieConsent delayMs={process.env.E2E_TEST_MODE === "1" ? 0 : 30_000} />
     </>
   );
 }

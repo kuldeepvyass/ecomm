@@ -1,17 +1,10 @@
 export const SORT_OPTIONS = [
+  { value: "recommended", label: "Recommended" },
   { value: "newest", label: "Newest" },
   { value: "popular", label: "Most popular" },
   { value: "rating", label: "Top rated" },
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
-] as const;
-
-export const PRICE_PRESETS = [
-  { label: "Under ₹15,000", min: undefined, max: 15000 },
-  { label: "₹15,000 – ₹30,000", min: 15000, max: 30000 },
-  { label: "₹30,000 – ₹50,000", min: 30000, max: 50000 },
-  { label: "₹50,000 – ₹75,000", min: 50000, max: 75000 },
-  { label: "₹75,000 – ₹1,00,000", min: 75000, max: 100000 },
 ] as const;
 
 export const SIZE_OPTIONS = [

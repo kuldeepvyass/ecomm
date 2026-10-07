@@ -90,6 +90,9 @@ export function orderFor(sort: SortKey): Prisma.ProductOrderByWithRelationInput[
       return [{ ratingAvg: "desc" }, { ratingCount: "desc" }, { id: "desc" }];
     case "popular":
       return [{ soldCount: "desc" }, { viewCount: "desc" }, { id: "desc" }];
+    case "recommended":
+      return [{ rankScore: "desc" }, { sellingPrice: "desc" }, { id: "desc" }];
+    case "newest":
     case "relevance":
     default:
       return [{ createdAt: "desc" }, { id: "desc" }];

@@ -1,13 +1,13 @@
 "use client";
 
-import { SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { formatINR } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { FILTER_KEYS, GENDER_OPTIONS, MOVEMENT_OPTIONS, PRICE_PRESETS, SIZE_OPTIONS, SORT_OPTIONS } from "./filter-options";
+import { FILTER_KEYS, GENDER_OPTIONS, MOVEMENT_OPTIONS, SIZE_OPTIONS, SORT_OPTIONS } from "./filter-options";
 
 export type Facets = {
   brands: { name: string; slug: string; count: number }[];
@@ -41,12 +41,17 @@ function useNavigate() {
   return { go, pending };
 }
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
+/** Collapsible filter section. Starts open only when it already has a selection. */
+function Section({ title, summary, defaultOpen, children }: { title: string; summary?: string; defaultOpen?: boolean; children: ReactNode }) {
   return (
-    <fieldset className="border-b border-border py-5">
-      <legend className="eyebrow mb-3 w-full text-fg-muted">{title}</legend>
-      {children}
-    </fieldset>
+    <details open={defaultOpen} className="group/sec border-b border-border">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
+        <span className="eyebrow text-fg">{title}</span>
+        {summary && <span className="ml-auto max-w-[55%] truncate text-xs text-gold">{summary}</span>}
+        <ChevronDown className={cn("size-4 shrink-0 text-fg-muted transition-transform group-open/sec:rotate-180", !summary && "ml-auto")} aria-hidden />
+      </summary>
+      <div className="pb-4">{children}</div>
+    </details>
   );
 }
 
@@ -60,6 +65,43 @@ function CheckRow({ label, count, checked, onChange }: { label: string; count?: 
   );
 }
 
+const STEP = 1000;
+
+/** Two-handle price range. Moves locally; commits to the URL when the handle is released. */
+function PriceSlider({ floor, ceil, min, max, onCommit }: {
+  floor: number; ceil: number; min?: number; max?: number; onCommit: (min?: number, max?: number) => void;
+}) {
+  const lo = Math.floor(floor / STEP) * STEP;
+  const hi = Math.max(lo + STEP, Math.ceil(ceil / STEP) * STEP);
+  const [range, setRange] = useState<[number, number]>([min ?? lo, max ?? hi]);
+  const [synced, setSynced] = useState(`${min}-${max}`);
+  if (synced !== `${min}-${max}`) {
+    setSynced(`${min}-${max}`);
+    setRange([min ?? lo, max ?? hi]);
+  }
+  const commit = () => onCommit(range[0] > lo ? range[0] : undefined, range[1] < hi ? range[1] : undefined);
+  const pct = (v: number) => ((v - lo) / (hi - lo)) * 100;
+  const thumb = "pointer-events-none absolute inset-x-0 top-1/2 h-0 w-full -translate-y-1/2 appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gold [&::-webkit-slider-thumb]:bg-bg [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-gold [&::-moz-range-thumb]:bg-bg";
+  const handlers = { onPointerUp: commit, onKeyUp: commit, onTouchEnd: commit };
+  return (
+    <div className="pt-1" data-testid="price-slider">
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-medium tabular-nums">{formatINR(range[0])}</span>
+        <span className="text-fg-subtle">to</span>
+        <span className="font-medium tabular-nums">{formatINR(range[1])}{range[1] >= hi ? "+" : ""}</span>
+      </div>
+      <div className="relative mx-3 mt-4 h-8">
+        <div className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-border" />
+        <div className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-gold" style={{ left: `${pct(range[0])}%`, right: `${100 - pct(range[1])}%` }} />
+        <input type="range" aria-label="Minimum price" min={lo} max={hi} step={STEP} value={range[0]} {...handlers}
+          onChange={(e) => setRange([Math.min(Number(e.target.value), range[1] - STEP), range[1]])} className={thumb} />
+        <input type="range" aria-label="Maximum price" min={lo} max={hi} step={STEP} value={range[1]} {...handlers}
+          onChange={(e) => setRange([range[0], Math.max(Number(e.target.value), range[0] + STEP)])} className={thumb} />
+      </div>
+    </div>
+  );
+}
+
 /** Edits a draft copy of the URL params; desktop applies instantly, mobile on "Show results". */
 function FilterBody({ facets, draft, setDraft, lock }: {
   facets: Facets;
@@ -67,6 +109,7 @@ function FilterBody({ facets, draft, setDraft, lock }: {
   setDraft: (p: URLSearchParams) => void;
   lock: Lock;
 }) {
+  const [brandQuery, setBrandQuery] = useState("");
   const list = (k: string) => draft.get(k)?.split(",").filter(Boolean) ?? [];
   const toggle = (k: string, v: string) => {
     const next = new URLSearchParams(draft);
@@ -78,97 +121,100 @@ function FilterBody({ facets, draft, setDraft, lock }: {
   };
   const setPrice = (min?: number, max?: number) => {
     const next = new URLSearchParams(draft);
-    const same = draft.get("min") === (min?.toString() ?? null) && draft.get("max") === (max?.toString() ?? null);
     next.delete("min");
     next.delete("max");
-    if (!same) {
-      if (min !== undefined) next.set("min", String(min));
-      if (max !== undefined) next.set("max", String(max));
-    }
+    if (min !== undefined) next.set("min", String(min));
+    if (max !== undefined) next.set("max", String(max));
     setDraft(next);
   };
+  /** "Leather, Mesh" / "3 selected" for a section header. */
+  const picked = (k: string, label: (v: string) => string = (v) => v) => {
+    const v = list(k);
+    return v.length === 0 ? undefined : v.length <= 2 ? v.map(label).join(", ") : `${v.length} selected`;
+  };
+  const num = (k: string) => (draft.get(k) ? Number(draft.get(k)) : undefined);
+  const brands = brandQuery ? facets.brands.filter((b) => b.name.toLowerCase().includes(brandQuery.toLowerCase())) : facets.brands;
+  const brandName = (slug: string) => facets.brands.find((b) => b.slug === slug)?.name ?? slug;
+  const movements = MOVEMENT_OPTIONS.filter((m) => facets.movements[m.value] || list("movement").includes(m.value));
 
   return (
     <div>
-      {!lock.gender && (
-        <Group title="For">
-          <div className="flex gap-2">
-            {GENDER_OPTIONS.map((g) => {
-              const active = draft.get("gender") === g.value;
-              return (
-                <button key={g.value} type="button" aria-pressed={active}
-                  onClick={() => { const n = new URLSearchParams(draft); if (active) n.delete("gender"); else n.set("gender", g.value); setDraft(n); }}
-                  className={cn("min-h-11 flex-1 rounded-[2px] border text-sm transition-colors", active ? "border-gold bg-gold-soft text-gold" : "border-border hover:border-border-strong")}>
-                  {g.label}
-                </button>
-              );
-            })}
-          </div>
-        </Group>
-      )}
-      <Group title="Availability">
-        <CheckRow label="In stock only" checked={draft.get("instock") === "1"}
-          onChange={() => { const n = new URLSearchParams(draft); if (n.get("instock") === "1") n.delete("instock"); else n.set("instock", "1"); setDraft(n); }} />
-      </Group>
+      <section aria-labelledby="price-filter" className="border-b border-border pb-6">
+        <h3 id="price-filter" className="eyebrow mb-3 text-fg">Price</h3>
+        <PriceSlider floor={facets.priceMin} ceil={facets.priceMax} min={num("min")} max={num("max")} onCommit={setPrice} />
+      </section>
+
+      <div className="flex flex-wrap items-center gap-2 border-b border-border py-4">
+        {!lock.gender && GENDER_OPTIONS.map((g) => {
+          const active = draft.get("gender") === g.value;
+          return (
+            <button key={g.value} type="button" aria-pressed={active}
+              onClick={() => { const n = new URLSearchParams(draft); if (active) n.delete("gender"); else n.set("gender", g.value); setDraft(n); }}
+              className={cn("min-h-10 rounded-full border px-4 text-sm transition-colors", active ? "border-gold bg-gold-soft text-gold" : "border-border hover:border-border-strong")}>
+              {g.label}
+            </button>
+          );
+        })}
+        <label className="ml-auto flex min-h-10 items-center gap-2 text-sm">
+          <input type="checkbox" checked={draft.get("instock") === "1"} className="size-5 accent-[var(--gold)]"
+            onChange={() => { const n = new URLSearchParams(draft); if (n.get("instock") === "1") n.delete("instock"); else n.set("instock", "1"); setDraft(n); }} />
+          In stock only
+        </label>
+      </div>
+
       {!lock.brand && facets.brands.length > 0 && (
-        <Group title="Maison">
-          {facets.brands.map((b) => (
-            <CheckRow key={b.slug} label={b.name} count={b.count} checked={list("brand").includes(b.slug)} onChange={() => toggle("brand", b.slug)} />
-          ))}
-        </Group>
+        <Section title="Brand" summary={picked("brand", brandName)} defaultOpen={list("brand").length > 0}>
+          {facets.brands.length > 8 && (
+            <input type="search" value={brandQuery} onChange={(e) => setBrandQuery(e.target.value)} placeholder={`Search ${facets.brands.length} brands`}
+              aria-label="Search brands" className="mb-2 h-10 w-full rounded-[2px] border border-border bg-bg px-3 text-base sm:text-sm" />
+          )}
+          <div className="max-h-72 overflow-y-auto overscroll-contain pr-1">
+            {brands.map((b) => (
+              <CheckRow key={b.slug} label={b.name} count={b.count} checked={list("brand").includes(b.slug)} onChange={() => toggle("brand", b.slug)} />
+            ))}
+            {brands.length === 0 && <p className="py-2 text-sm text-fg-subtle">No brand matches “{brandQuery}”.</p>}
+          </div>
+        </Section>
       )}
-      <Group title="Price">
-        <div className="flex flex-col">
-          {PRICE_PRESETS.map((p) => {
-            const active = draft.get("min") === (p.min?.toString() ?? null) && draft.get("max") === (p.max?.toString() ?? null);
-            return (
-              <label key={p.label} className="flex min-h-11 items-center gap-3 text-sm">
-                <input type="radio" name="price" checked={active} onChange={() => setPrice(p.min, p.max)}
-                  onClick={() => active && setPrice(p.min, p.max)} className="size-5 accent-[var(--gold)]" />
-                {p.label}
-              </label>
-            );
-          })}
-        </div>
-        <p className="mt-2 text-xs text-fg-subtle">Range in store: {formatINR(facets.priceMin)} – {formatINR(facets.priceMax)}</p>
-      </Group>
-      <Group title="Case size">
-        {SIZE_OPTIONS.map((s) => (
-          <CheckRow key={s.value} label={s.label} checked={list("size").includes(s.value)} onChange={() => toggle("size", s.value)} />
-        ))}
-      </Group>
       {facets.types.length > 1 && (
-        <Group title="Type">
+        <Section title="Type" summary={picked("type")} defaultOpen={list("type").length > 0}>
           {facets.types.map((t) => (
             <CheckRow key={t.value} label={t.value} count={t.count} checked={list("type").includes(t.value)} onChange={() => toggle("type", t.value)} />
           ))}
-        </Group>
+        </Section>
       )}
-      <Group title="Movement">
-        {MOVEMENT_OPTIONS.filter((m) => facets.movements[m.value] || list("movement").includes(m.value)).map((m) => (
+      <Section title="Movement" summary={picked("movement", (v) => MOVEMENT_OPTIONS.find((m) => m.value === v)?.label ?? v)} defaultOpen={list("movement").length > 0}>
+        {movements.map((m) => (
           <CheckRow key={m.value} label={m.label} count={facets.movements[m.value]} checked={list("movement").includes(m.value)} onChange={() => toggle("movement", m.value)} />
         ))}
-      </Group>
+      </Section>
       {facets.straps.length > 0 && (
-        <Group title="Strap / bracelet">
+        <Section title="Strap / bracelet" summary={picked("strap")} defaultOpen={list("strap").length > 0}>
           {facets.straps.map((s) => (
             <CheckRow key={s.value} label={s.value} count={s.count} checked={list("strap").includes(s.value)} onChange={() => toggle("strap", s.value)} />
           ))}
-        </Group>
+        </Section>
       )}
+      <Section title="Case size" summary={picked("size", (v) => SIZE_OPTIONS.find((o) => o.value === v)?.label ?? v)} defaultOpen={list("size").length > 0}>
+        {SIZE_OPTIONS.map((s) => (
+          <CheckRow key={s.value} label={s.label} checked={list("size").includes(s.value)} onChange={() => toggle("size", s.value)} />
+        ))}
+      </Section>
       {facets.shapes.length > 1 && (
-        <Group title="Case shape">
+        <Section title="Case shape" summary={picked("shape")} defaultOpen={list("shape").length > 0}>
           {facets.shapes.map((t) => (
             <CheckRow key={t.value} label={t.value} count={t.count} checked={list("shape").includes(t.value)} onChange={() => toggle("shape", t.value)} />
           ))}
-        </Group>
+        </Section>
       )}
       {facets.dials.length > 0 && (
-        <Group title="Dial colour">
-          {facets.dials.map((d) => (
-            <CheckRow key={d.value} label={d.value} count={d.count} checked={list("dial").includes(d.value)} onChange={() => toggle("dial", d.value)} />
-          ))}
-        </Group>
+        <Section title="Dial colour" summary={picked("dial")} defaultOpen={list("dial").length > 0}>
+          <div className="max-h-72 overflow-y-auto overscroll-contain pr-1">
+            {facets.dials.map((d) => (
+              <CheckRow key={d.value} label={d.value} count={d.count} checked={list("dial").includes(d.value)} onChange={() => toggle("dial", d.value)} />
+            ))}
+          </div>
+        </Section>
       )}
     </div>
   );
@@ -253,7 +299,7 @@ export function ListingToolbar({ facets, total, lock = {}, showRelevance = false
             <FilterBody facets={facets} draft={draft} setDraft={setDraft} lock={lock} />
           </Sheet>
           <label className="sr-only" htmlFor="sort">Sort by</label>
-          <select id="sort" value={get("sort") ?? (showRelevance ? "relevance" : "newest")}
+          <select id="sort" value={get("sort") ?? (showRelevance ? "relevance" : "recommended")}
             onChange={(e) => { const n = new URLSearchParams(sp.toString()); n.set("sort", e.target.value); go(n); }}
             className="h-10 min-w-0 max-w-44 truncate rounded-[2px] border border-border bg-surface px-2 text-xs uppercase tracking-[0.08em] text-fg focus:border-gold focus:outline-none sm:max-w-none sm:px-3 sm:tracking-[0.12em]">
             {showRelevance && <option value="relevance">Best match</option>}

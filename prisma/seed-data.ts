@@ -43,6 +43,8 @@ export function imageUrl({ n, z, fx }: Img): string {
 
 export const HERO_IMAGE = `https://images.unsplash.com/photo-${P[44]}?fit=crop&ar=16:9&crop=entropy`;
 export const HERO_IMAGE_MOBILE = `https://images.unsplash.com/photo-${P[44]}?fit=crop&ar=4:5&crop=entropy`;
+/** Free-to-use Pexels clip (pexels.com/video/10728498): macro of an open-worked dial, no brand marks. */
+export const HERO_VIDEO = "https://videos.pexels.com/video-files/10728498/10728498-hd_1280_720_30fps.mp4";
 export const STORY_IMAGE = `https://images.unsplash.com/photo-${P[48]}?fit=crop&ar=4:5&crop=entropy`;
 export const COLLECTION_IMAGES: Record<string, string> = {
   dress: imageUrl(img(37)),

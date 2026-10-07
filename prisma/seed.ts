@@ -8,7 +8,7 @@ import { strapTypeOf } from "../src/lib/catalog/classify";
 import { TEST_ACCOUNTS } from "../src/lib/dev/test-accounts";
 import { buildSearchText } from "../src/lib/text";
 import {
-  BRANDS, COLLECTIONS, COLLECTION_IMAGES, HERO_IMAGE, HERO_IMAGE_MOBILE, PRODUCTS, REVIEWER_NAMES,
+  BRANDS, COLLECTIONS, COLLECTION_IMAGES, HERO_IMAGE, HERO_IMAGE_MOBILE, HERO_VIDEO, PRODUCTS, REVIEWER_NAMES,
   REVIEW_PHOTOS, REVIEW_TEMPLATES, STORY_IMAGE, imageUrl,
 } from "./seed-data";
 
@@ -104,7 +104,7 @@ async function seedSettings() {
         {
           placement: "HERO", position: 0, eyebrow: "The Autumn Collection", title: "Time, Mastered.",
           subtitle: "Exceptional timepieces from independent maisons — authenticated, insured and delivered across India.",
-          imageUrl: HERO_IMAGE, mobileImageUrl: HERO_IMAGE_MOBILE, ctaLabel: "Explore the collection", ctaHref: "/watches",
+          imageUrl: HERO_IMAGE, mobileImageUrl: HERO_IMAGE_MOBILE, videoUrl: HERO_VIDEO, ctaLabel: "Explore the collection", ctaHref: "/watches",
         },
         {
           placement: "STORY", position: 0, eyebrow: "Savoir-faire", title: "Every bridge, on display.",

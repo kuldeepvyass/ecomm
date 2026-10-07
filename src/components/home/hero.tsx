@@ -3,7 +3,7 @@
 import { m, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getImageProps } from "next/image";
 import { sameOriginLoader } from "@/lib/image-loader";
@@ -32,9 +32,7 @@ export function Hero({ banner }: { banner: Banner }) {
       <m.div style={{ y }} className="absolute inset-0 will-change-transform">
         <div className="absolute inset-0 animate-[hero-drift_24s_ease-in-out_infinite_alternate] motion-reduce:animate-none">
           <HeroPicture desktop={banner.imageUrl} mobile={banner.mobileImageUrl ?? banner.imageUrl} />
-          {banner.videoUrl && !reduce && (
-            <video className="absolute inset-0 hidden h-full w-full object-cover md:block" src={banner.videoUrl} autoPlay muted loop playsInline preload="none" aria-hidden />
-          )}
+          {banner.videoUrl && !reduce && <HeroVideo src={banner.videoUrl} />}
         </div>
       </m.div>
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgb(11_10_9/0.55)_0%,rgb(11_10_9/0.1)_35%,rgb(11_10_9/0.75)_80%,rgb(11_10_9/0.95)_100%)]" aria-hidden />
@@ -63,6 +61,47 @@ export function Hero({ banner }: { banner: Banner }) {
         </div>
       </m.div>
     </section>
+  );
+}
+
+/**
+ * Pexels serves each clip in several sizes; phones get the 540p file (~3 MB), larger screens 720p.
+ * Other hosts: the URL is used as-is.
+ */
+function videoFor(src: string, wide: boolean) {
+  return wide ? src : src.replace(/-(?:hd_1920_1080|hd_1280_720)_(\d+fps)\.mp4$/, "-sd_960_540_$1.mp4");
+}
+
+/**
+ * Cinematic loop layered over the still. It starts downloading only after the page has loaded (the
+ * still stays the LCP image), fades in once it can play through, and is skipped on Data Saver.
+ */
+function HeroVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (conn?.saveData || /(^|-)2g$/.test(conn?.effectiveType ?? "")) return;
+    let cancelled = false;
+    const start = () => {
+      if (cancelled) return;
+      v.src = videoFor(src, window.matchMedia("(min-width: 768px)").matches);
+      v.play().catch(() => {});
+    };
+    const later = () => setTimeout(start, 600);
+    if (document.readyState === "complete") later();
+    else window.addEventListener("load", later, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", later);
+    };
+  }, [src]);
+  return (
+    <video ref={ref} muted loop playsInline preload="none" aria-hidden disablePictureInPicture
+      onPlaying={() => setReady(true)}
+      className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1500ms] ease-out ${ready ? "opacity-100" : "opacity-0"}`} />
   );
 }
 

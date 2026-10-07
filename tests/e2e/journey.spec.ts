@@ -49,10 +49,13 @@ test("browse the shop and filter by movement", async () => {
   await expect(customer.getByTestId("product-card").first()).toBeVisible();
   if (isMobile(customer)) {
     await customer.getByTestId("open-filters").click();
+    await customer.getByRole("dialog").getByText("Movement", { exact: true }).click();
     await customer.getByRole("dialog").getByLabel("Manual wind").check();
     await customer.getByTestId("apply-filters").click();
   } else {
-    await customer.getByRole("complementary", { name: "Filters" }).getByLabel("Manual wind").check();
+    const sidebar = customer.getByRole("complementary", { name: "Filters" });
+    await sidebar.getByText("Movement", { exact: true }).click();
+    await sidebar.getByLabel("Manual wind").check();
   }
   await expect(customer).toHaveURL(/movement=MANUAL/);
   await expect(customer.getByRole("button", { name: /Remove filter Manual wind/i })).toBeVisible();

@@ -21,7 +21,7 @@ const schema = z.object({
   dial: list,
   gender: z.enum(["MEN", "WOMEN"]).optional().catch(undefined),
   instock: z.string().optional().transform((v) => v === "1" || v === "true"),
-  sort: z.enum(["relevance", "newest", "price_asc", "price_desc", "rating", "popular"]).optional().catch(undefined),
+  sort: z.enum(["relevance", "recommended", "newest", "price_asc", "price_desc", "rating", "popular"]).optional().catch(undefined),
 });
 
 /** Parses (untrusted) URL params into typed listing filters. Never throws. */
@@ -43,6 +43,7 @@ export function parseListingParams(raw: Record<string, string | string[] | undef
       gender: p.gender,
       inStock: p.instock || undefined,
     },
-    sort: p.sort === "relevance" && !p.q ? "newest" : (p.sort ?? (p.q ? "relevance" : "newest")),
+    // Default: "Recommended" (premium analog first); search defaults to best match.
+    sort: p.sort === "relevance" && !p.q ? "recommended" : (p.sort ?? (p.q ? "relevance" : "recommended")),
   };
 }
