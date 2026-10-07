@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { TAGS } from "@/lib/cache-tags";
 
 export const getBanners = unstable_cache(
-  async (placement: "HERO" | "STRIP" | "STORY") => {
+  async (placement: "HERO" | "STRIP" | "STORY" | "SHOP_BY") => {
     const now = new Date();
     return db.homeBanner.findMany({
       where: {

@@ -16,7 +16,7 @@ export default async function Content() {
     <div>
       <PageHeader title="Homepage" description="Hero, brand-story strips and curated collections — changes go live within seconds, no code needed." />
       <ContentEditor
-        banners={banners.map((b) => ({ id: b.id, placement: b.placement as "HERO" | "STRIP" | "STORY", eyebrow: b.eyebrow ?? "", title: b.title, subtitle: b.subtitle ?? "", imageUrl: b.imageUrl, mobileImageUrl: b.mobileImageUrl ?? "", videoUrl: b.videoUrl ?? "", ctaLabel: b.ctaLabel ?? "", ctaHref: b.ctaHref ?? "", position: b.position, active: b.active }))}
+        banners={banners.map((b) => ({ id: b.id, placement: b.placement as "HERO" | "STRIP" | "STORY" | "SHOP_BY", eyebrow: b.eyebrow ?? "", title: b.title, subtitle: b.subtitle ?? "", imageUrl: b.imageUrl, mobileImageUrl: b.mobileImageUrl ?? "", videoUrl: b.videoUrl ?? "", ctaLabel: b.ctaLabel ?? "", ctaHref: b.ctaHref ?? "", position: b.position, active: b.active }))}
         collections={collections.map((c) => ({ id: c.id, name: c.name, description: c.description ?? "", heroImage: c.heroImage ?? "", sortOrder: c.sortOrder, showOnHome: c.showOnHome, count: c._count.products }))} />
     </div>
   );

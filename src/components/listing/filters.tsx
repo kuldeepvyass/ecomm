@@ -235,9 +235,9 @@ export function ListingToolbar({ facets, total, lock = {}, showRelevance = false
 
   return (
     <div className="mb-6 flex flex-col gap-4" aria-busy={pending}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-fg-muted" aria-live="polite">{total} {total === 1 ? "watch" : "watches"}</p>
-        <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <p className="shrink-0 text-sm text-fg-muted" aria-live="polite">{total} {total === 1 ? "watch" : "watches"}</p>
+        <div className="flex min-w-0 items-center gap-2">
           <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) setDraft(new URLSearchParams(sp.toString())); }} title="Filter" side="left"
             trigger={
               <Button variant="outline" size="sm" className="lg:hidden" data-testid="open-filters">
@@ -255,7 +255,7 @@ export function ListingToolbar({ facets, total, lock = {}, showRelevance = false
           <label className="sr-only" htmlFor="sort">Sort by</label>
           <select id="sort" value={get("sort") ?? (showRelevance ? "relevance" : "newest")}
             onChange={(e) => { const n = new URLSearchParams(sp.toString()); n.set("sort", e.target.value); go(n); }}
-            className="h-10 rounded-[2px] border border-border bg-surface px-3 text-xs uppercase tracking-[0.12em] text-fg focus:border-gold focus:outline-none">
+            className="h-10 min-w-0 max-w-44 truncate rounded-[2px] border border-border bg-surface px-2 text-xs uppercase tracking-[0.08em] text-fg focus:border-gold focus:outline-none sm:max-w-none sm:px-3 sm:tracking-[0.12em]">
             {showRelevance && <option value="relevance">Best match</option>}
             {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>

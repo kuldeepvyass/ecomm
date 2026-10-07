@@ -9,6 +9,8 @@ type Props = Omit<ImageProps, "loader" | "placeholder" | "blurDataURL" | "priori
   blurDataUrl?: string | null;
   /** Above-the-fold / LCP candidate. Next 16 deprecated `priority`; this maps to eager + high fetch priority. */
   priority?: boolean;
+  /** Linked product photos default to "contain" on white; full-bleed cards (home tiles) pass "cover". */
+  linkedFit?: "contain" | "cover";
 };
 
 /**
@@ -16,7 +18,7 @@ type Props = Omit<ImageProps, "loader" | "placeholder" | "blurDataURL" | "priori
  * lazy-load margin on slow connections (fetching most of a page up front); this keeps the LCP image
  * from competing for bandwidth. The blur placeholder occupies the same box, so there is no layout shift.
  */
-export function WatchImage({ blurDataUrl, priority, fill, className, ...props }: Props) {
+export function WatchImage({ blurDataUrl, priority, fill, className, linkedFit = "contain", ...props }: Props) {
   const anchor = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(Boolean(priority));
   const [broken, setBroken] = useState(false);
@@ -66,7 +68,7 @@ export function WatchImage({ blurDataUrl, priority, fill, className, ...props }:
         {...props}
         {...LINKED_IMAGE_PROPS}
         fill={fill}
-        className={cn(className, "object-contain! bg-white p-[4%]")}
+        className={linkedFit === "cover" ? className : cn(className, "object-contain! bg-white p-[4%]")}
         {...(priority ? { loading: "eager" as const, fetchPriority: "high" as const } : {})}
         onError={() => setBroken(true)}
       />

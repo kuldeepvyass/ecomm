@@ -18,12 +18,13 @@ export async function Listing({ searchParams, fixed = {}, lock = {}, showRelevan
   const { filters, sort } = parseListingParams({ ...searchParams, ...fixed });
   const [page, total, facets] = await Promise.all([listProducts({ filters, sort }), countProducts(filters), getFacets()]);
 
+  // minmax(0,1fr): the results column never grows past the screen, whatever its content's min width.
   return (
-    <div className="grid gap-10 lg:grid-cols-[15rem_1fr] xl:grid-cols-[16rem_1fr]">
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)]">
       <Suspense>
         <DesktopFilters facets={facets} lock={lock} />
       </Suspense>
-      <div>
+      <div className="min-w-0">
         <Suspense>
           <ListingToolbar facets={facets} total={total} lock={lock} showRelevance={showRelevance} />
         </Suspense>

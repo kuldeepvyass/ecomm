@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/misc";
 import { Sheet } from "@/components/ui/sheet";
 import { deleteBanner, saveBanner, saveCollection } from "@/server/actions/admin/store";
 
-type Banner = { id?: string; placement: "HERO" | "STRIP" | "STORY"; eyebrow: string; title: string; subtitle: string; imageUrl: string; mobileImageUrl: string; videoUrl: string; ctaLabel: string; ctaHref: string; position: number; active: boolean };
+type Banner = { id?: string; placement: "HERO" | "STRIP" | "STORY" | "SHOP_BY"; eyebrow: string; title: string; subtitle: string; imageUrl: string; mobileImageUrl: string; videoUrl: string; ctaLabel: string; ctaHref: string; position: number; active: boolean };
 type Coll = { id?: string; name: string; description: string; heroImage: string; sortOrder: number; showOnHome: boolean; count?: number };
 
 export function ContentEditor({ banners, collections }: { banners: Banner[]; collections: Coll[] }) {
@@ -59,7 +59,7 @@ export function ContentEditor({ banners, collections }: { banners: Banner[]; col
         footer={<Button block loading={pending} onClick={() => b && save(() => saveBanner(b), () => setB(null))}>Save banner</Button>}>
         {b && (
           <div className="flex flex-col gap-4">
-            <Field label="Placement">{(p) => <Select {...p} value={b.placement} onChange={(e) => setB({ ...b, placement: e.target.value as Banner["placement"] })}><option value="HERO">Hero (top of homepage)</option><option value="STORY">Brand story strip</option><option value="STRIP">Promo strip</option></Select>}</Field>
+            <Field label="Placement">{(p) => <Select {...p} value={b.placement} onChange={(e) => setB({ ...b, placement: e.target.value as Banner["placement"] })}><option value="HERO">Hero (top of homepage)</option><option value="STORY">Brand story strip</option><option value="STRIP">Promo strip</option><option value="SHOP_BY">Shop by tile (For Him / For Her)</option></Select>}</Field>
             <SingleImage label="Image (desktop, wide)" value={b.imageUrl} onChange={(u) => setB({ ...b, imageUrl: u })} />
             <SingleImage label="Image (mobile, portrait — optional)" value={b.mobileImageUrl} onChange={(u) => setB({ ...b, mobileImageUrl: u })} />
             <Field label="Eyebrow">{(p) => <Input {...p} value={b.eyebrow} onChange={(e) => setB({ ...b, eyebrow: e.target.value })} />}</Field>

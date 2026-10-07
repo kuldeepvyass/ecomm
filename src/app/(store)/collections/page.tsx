@@ -16,7 +16,7 @@ export default async function CollectionsPage() {
         {collections.map((c) => (
           <li key={c.id}>
             <Link href={`/collections/${c.slug}`} className="group relative flex aspect-[4/3] items-end overflow-hidden bg-surface-2 p-6 md:p-10">
-              {c.heroImage && <WatchImage src={c.heroImage} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-[1200ms] group-hover:scale-105" />}
+              {c.heroImage && <WatchImage src={c.heroImage} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" linkedFit="cover" className="object-cover transition-transform duration-[1200ms] group-hover:scale-105" />}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" aria-hidden />
               <div className="relative text-[#f5f1ea]">
                 <h2 className="text-4xl md:text-5xl">{c.name}</h2>

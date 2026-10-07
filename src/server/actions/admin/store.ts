@@ -106,7 +106,7 @@ export async function deleteCoupon(id: string): Promise<ActionResult<null>> {
 // ───────── Homepage content ─────────
 const bannerSchema = z.object({
   id: z.string().cuid().optional(),
-  placement: z.enum(["HERO", "STRIP", "STORY"]),
+  placement: z.enum(["HERO", "STRIP", "STORY", "SHOP_BY"]),
   eyebrow: z.string().trim().max(60).optional().transform((v) => v || null),
   title: z.string().trim().min(2).max(120),
   subtitle: z.string().trim().max(300).optional().transform((v) => v || null),

@@ -2,6 +2,7 @@ import "server-only";
 import ExcelJS from "exceljs";
 import Papa from "papaparse";
 import { z } from "zod";
+import { normalizeMovement } from "@/lib/catalog/classify";
 import { db } from "@/lib/db";
 import { productInputSchema, type ProductInput } from "./admin";
 
@@ -191,13 +192,20 @@ export type ImportOptions = {
   checkImages?: boolean;
 };
 
-/** Watch type → curated collection, so dataset rows land in Chronograph / Dive / Dress automatically. */
-function collectionsForType(watchType: unknown): string[] {
-  const t = String(watchType ?? "").toLowerCase();
-  if (t.includes("chrono")) return ["Chronograph"];
-  if (t.includes("div")) return ["Dive"];
-  if (t.includes("dress")) return ["Dress"];
-  return [];
+/**
+ * Curated collections a new row joins automatically (when the file has no collections column):
+ * by watch type, movement and brand origin — so the homepage collections fill themselves.
+ */
+function collectionsFor(row: Record<string, unknown>): string[] {
+  const type = String(row.watchType ?? "").toLowerCase();
+  const out: string[] = [];
+  if (type.includes("chrono")) out.push("Chronograph");
+  if (type.includes("div")) out.push("Dive");
+  if (type.includes("dress")) out.push("Dress");
+  if (/smart|gps|fitness/.test(type)) out.push("Smartwatches");
+  if (normalizeMovement(String(row.movement ?? "")) === "AUTOMATIC") out.push("Automatic");
+  if (/swiss|switzerland/i.test(String(row.brandOrigin ?? "")) || /^swiss\b/i.test(String(row.movement ?? ""))) out.push("Swiss Made");
+  return out;
 }
 
 /** Model numbers like "3575xxx (variant TBC)" are notes, not references customers should see. */
@@ -266,7 +274,7 @@ export async function validateRows(kind: "IMPORT" | "BULK_UPDATE" | "BULK_DELETE
     if (!ex) {
       if (provided.stock === undefined) provided.stock = String(opts.defaultStock ?? 1);
       if (provided.status === undefined) provided.status = opts.publish === false ? "DRAFT" : "ACTIVE";
-      if (provided.collections === undefined) provided.collections = collectionsForType(provided.watchType);
+      if (provided.collections === undefined) provided.collections = collectionsFor(provided);
       if (imageList.length === 0 && provided.status === "ACTIVE") {
         provided.status = "DRAFT";
         warnings.push("No images — saved as a draft until you add one");

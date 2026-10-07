@@ -13,9 +13,10 @@ import { getBanners } from "@/server/content";
 import { OrganizationJsonLd } from "./organization-jsonld";
 
 export default async function HomePage() {
-  const [heroes, stories, collections, featured, arrivals, brands] = await Promise.all([
+  const [heroes, stories, shopBy, collections, featured, arrivals, brands] = await Promise.all([
     getBanners("HERO"),
     getBanners("STORY"),
+    getBanners("SHOP_BY"),
     getCollections(),
     getFeaturedProducts(8),
     getNewArrivals(8),
@@ -23,7 +24,14 @@ export default async function HomePage() {
   ]);
   const hero = heroes[0];
   const story = stories[0];
-  const homeCollections = collections.filter((c) => c.showOnHome);
+  // Never show an empty collection on the homepage.
+  const homeCollections = collections.filter((c) => c.showOnHome && c._count.products > 0);
+  const tiles = shopBy.length
+    ? shopBy.map((b) => ({ href: b.ctaHref ?? "/watches", title: b.title, body: b.subtitle ?? "", cta: b.ctaLabel ?? "Shop now", image: b.imageUrl }))
+    : [
+        { href: "/watches?gender=MEN", title: "For Him", body: "Automatics, chronographs and everyday icons.", cta: "Shop now", image: undefined },
+        { href: "/watches?gender=WOMEN", title: "For Her", body: "Jewellery watches and everyday icons.", cta: "Shop now", image: undefined },
+      ];
 
   return (
     <>
@@ -55,7 +63,7 @@ export default async function HomePage() {
       {homeCollections.length > 0 && (
         <section className="container-luxe py-16 md:py-28" aria-labelledby="collections-heading">
           <Reveal>
-            <SectionHeading eyebrow="Curated Collections" title="Find your signature" description="Four ways into the world of fine watchmaking." />
+            <SectionHeading eyebrow="Curated Collections" title="Find your signature" description={`${["One way", "Two ways", "Three ways", "Four ways"][Math.min(homeCollections.length, 4) - 1]} into the world of fine watchmaking.`} />
           </Reveal>
           <ul className="grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
             {homeCollections.map((c, i) => (
@@ -63,7 +71,7 @@ export default async function HomePage() {
                 <Reveal delay={i * 0.06}>
                   <Link href={`/collections/${c.slug}`} className="group relative block aspect-[3/4] overflow-hidden bg-surface-2">
                     {c.heroImage && (
-                      <WatchImage src={c.heroImage} alt="" fill sizes="(min-width: 1024px) 24vw, 48vw"
+                      <WatchImage src={c.heroImage} alt="" fill sizes="(min-width: 1024px) 24vw, 48vw" linkedFit="cover"
                         className="object-cover transition-transform duration-[1200ms] ease-[var(--ease-luxe)] group-hover:scale-105" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" aria-hidden />
@@ -116,18 +124,16 @@ export default async function HomePage() {
 
       {/* Shop by */}
       <section className="container-luxe grid gap-3 py-16 md:grid-cols-2 md:gap-6 md:py-28" aria-label="Shop by">
-        {[
-          { href: "/watches?gender=MEN", title: "For Him", body: "Chronographs, divers and dress watches.", image: featured.find((p) => p.gender === "MEN")?.images[0] },
-          { href: "/watches?gender=WOMEN", title: "For Her", body: "Jewellery watches and everyday icons.", image: featured.find((p) => p.gender === "WOMEN")?.images[0] },
-        ].map((t) => (
+        {tiles.map((t) => (
           <Link key={t.href} href={t.href} className="group relative flex aspect-[16/10] items-end overflow-hidden bg-surface-2 p-6 md:p-10">
-            {t.image && <WatchImage src={t.image.url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" blurDataUrl={t.image.blurDataUrl}
+            {t.image && <WatchImage src={t.image} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" linkedFit="cover"
               className="object-cover transition-transform duration-[1200ms] ease-[var(--ease-luxe)] group-hover:scale-105" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" aria-hidden />
+            {/* Strong scrim: tiles can use bright studio shots (silver/white dials) behind white text. */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/10" aria-hidden />
             <div className="relative text-[#f5f1ea]">
               <h2 className="text-4xl md:text-5xl">{t.title}</h2>
               <p className="mt-2 text-sm text-[#d8d2c8]">{t.body}</p>
-              <span className="eyebrow mt-4 inline-flex items-center gap-2 text-[#dcc08c]">Shop now <ArrowRight className="size-4" aria-hidden /></span>
+              <span className="eyebrow mt-4 inline-flex items-center gap-2 text-[#dcc08c]">{t.cta} <ArrowRight className="size-4" aria-hidden /></span>
             </div>
           </Link>
         ))}
