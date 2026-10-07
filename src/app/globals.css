@@ -30,9 +30,9 @@
   --gold-strong: #634a20;
   --gold-soft: rgb(120 91 40 / 0.1);
   --on-gold: #ffffff;
-  --danger: #c62828;
-  --success: #1e7a55;
-  --warning: #9a6200;
+  --danger: #a51e1e;
+  --success: #156044;
+  --warning: #7a4d00; /* status colours ≥4.5:1 on their own 15 % tint, incl. surface-2 */
   --overlay: rgb(28 25 23 / 0.45);
   --chart-1: #9a6b1c; /* validated vs #ffffff */
   --chart-grid: #ebe4d8;
