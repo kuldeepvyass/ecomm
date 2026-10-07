@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+!.env.e2e
 
 # vercel
 .vercel
@@ -39,3 +41,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local postgres data
+/.pgdata
+# prisma generated client
+/src/generated
+# playwright
+/test-results
+/playwright-report
+/.lighthouseci
+# local uploads (dev fallback when Cloudinary is not configured)
+/public/uploads
+/.dev-mail
+/.next-e2e
+/.next-build
+/tests/e2e/.auth
