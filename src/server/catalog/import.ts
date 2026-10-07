@@ -184,7 +184,10 @@ export type ImportOptions = {
   publish?: boolean;
   /** Label for imported ratings that have no source column, e.g. "Amazon.in". Blank = no label. */
   ratingSource?: string | null;
-  /** Check that every image link actually loads (warnings only). */
+  /**
+   * Server-side link check (off by default). Many retailers block automated requests but serve
+   * browsers fine, so the importer UI checks links in the admin's browser instead — far more accurate.
+   */
   checkImages?: boolean;
 };
 
@@ -195,6 +198,36 @@ function collectionsForType(watchType: unknown): string[] {
   if (t.includes("div")) return ["Dive"];
   if (t.includes("dress")) return ["Dress"];
   return [];
+}
+
+/** Model numbers like "3575xxx (variant TBC)" are notes, not references customers should see. */
+const PLACEHOLDER_REF = /x{3,}|\btb[ac]\b|\bvariant\b|\bn\/?a\b|unknown|^-+$/i;
+
+/**
+ * Each brand's reference numbers are unique in the catalogue. Catch clashes at preview time —
+ * within the file and against existing products — instead of failing halfway through the save.
+ */
+async function flagDuplicateReferences(results: RowResult[]) {
+  const live = results.filter((r) => (r.action === "create" || r.action === "update") && r.data);
+  const keyOf = (brand: string, ref: string) => `${brand.trim().toLowerCase()}|${ref.trim().toLowerCase()}`;
+  const firstRow = new Map<string, RowResult>();
+  for (const r of live) {
+    const k = keyOf(r.data!.brand, r.data!.referenceNumber);
+    const prev = firstRow.get(k);
+    if (prev) Object.assign(r, { action: "error", errors: [`Same brand + model number as row ${prev.row} (${prev.sku}) — give each watch its own model number`], data: undefined });
+    else firstRow.set(k, r);
+  }
+  if (!firstRow.size) return;
+  const clashes = await db.product.findMany({
+    where: { OR: [...firstRow.values()].map((r) => ({ referenceNumber: { equals: r.data!.referenceNumber, mode: "insensitive" as const }, brand: { name: { equals: r.data!.brand, mode: "insensitive" as const } } })) },
+    select: { id: true, sku: true, referenceNumber: true, brand: { select: { name: true } } },
+  });
+  for (const c of clashes) {
+    const r = firstRow.get(keyOf(c.brand.name, c.referenceNumber));
+    if (r && r.productId !== c.id && r.sku.toLowerCase() !== c.sku.toLowerCase()) {
+      Object.assign(r, { action: "error", errors: [`${c.brand.name} ${c.referenceNumber} already exists as SKU ${c.sku}`], data: undefined });
+    }
+  }
 }
 
 /** Validates every row; nothing is written. */
@@ -225,6 +258,10 @@ export async function validateRows(kind: "IMPORT" | "BULK_UPDATE" | "BULK_DELETE
     for (const k of ["mrp", "costPrice", "stock"]) if (typeof provided[k] === "string") provided[k] = (provided[k] as string).replace(/[₹,\s]|rs\.?|inr/gi, "").replace(/\.\d+$/, "");
     if (provided.externalRating !== undefined && !provided.externalRatingSource && opts.ratingSource) provided.externalRatingSource = opts.ratingSource;
     const warnings: string[] = [];
+    if (typeof provided.referenceNumber === "string" && PLACEHOLDER_REF.test(provided.referenceNumber)) {
+      warnings.push(`Model number "${provided.referenceNumber}" looks like a placeholder — using ${sku} as the reference`);
+      provided.referenceNumber = sku;
+    }
     const imageList = raw.images ? splitList(raw.images) : [];
     if (!ex) {
       if (provided.stock === undefined) provided.stock = String(opts.defaultStock ?? 1);
@@ -253,7 +290,8 @@ export async function validateRows(kind: "IMPORT" | "BULK_UPDATE" | "BULK_DELETE
     results.push({ row: rowNo, sku, action: "create", data: parsed.data, images: imageList, warnings });
   });
 
-  if (opts.checkImages !== false) await checkImageLinks(results);
+  await flagDuplicateReferences(results);
+  if (opts.checkImages) await checkImageLinks(results);
   return results;
 }
 
@@ -298,6 +336,8 @@ export const commitBody = z.object({
   from: z.number().int().min(0),
   to: z.number().int().min(1),
   imageMap: z.record(z.string(), z.object({ url: z.string(), publicId: z.string().nullable().optional(), width: z.number(), height: z.number(), blurDataUrl: z.string().nullable().optional() })).default({}),
+  /** Image links the admin's browser couldn't load — left out of the products. */
+  dropImages: z.array(z.string().max(2000)).max(10000).default([]),
 });
 
 /** Export: every product (incl. drafts, excl. trash) in template order. */

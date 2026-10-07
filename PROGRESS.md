@@ -63,3 +63,13 @@ _Last updated: 2026-10-07 (final local build)_
 
 ## Tests
 - Vitest unit: 28 passing (pricing, coupons, GST totals, order transitions, rupees-in-words).
+
+## Change: own dataset import + light theme + test accounts ✅ (2026-10-08)
+- Light ("ivory") theme is the default; dark stays available.
+- Importer reads the dataset CSV as-is (watch_id, model_name, collection, watch_type, case_size_mm, strap, water_resistance, warranty, price_inr, image1–4, rating, rating_count…). Ignored: segment, image_count, dataset_image_file.
+- Images are **links** (never downloaded); shown straight from their host with no-referrer, on white, with a placeholder if a link dies. Link check runs in the admin's browser (servers get blocked by retail CDNs); broken links are dropped at commit.
+- Normalisation: watch types → Analog / Chronograph / Multifunction / Smartwatch / Diver…; "Rechargeable battery" → Smart; placeholder model numbers ("…xxx (variant TBC)") → SKU; duplicate brand+reference caught at preview.
+- Shop filters: Type, Movement (only those in stock), Strap type, Case shape. PDP spec table shows collection, type, functions, case shape, brand origin and a highlight line.
+- `top246_watches_final.csv` imported: 246 watches, 0 failures (11 dead image links of 881 dropped).
+- Dev-only one-click sign-in on /sign-in: customer@maison.test and admin@maison.test (seeded, no OTP).
+- Vitest 53/53, typecheck + lint clean. E2E not re-run (by request).

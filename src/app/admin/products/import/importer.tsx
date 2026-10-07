@@ -21,6 +21,18 @@ const MODES: { kind: Kind; title: string; body: string }[] = [
   { kind: "BULK_DELETE", title: "Remove / deactivate", body: "Move SKUs to trash (restorable) or hide them as drafts." },
 ];
 const IMG_EXT = /\.(jpe?g|png|webp|avif)$/i;
+
+/** Loads a link exactly as a shopper's browser will (no referrer). Retail CDNs often block servers but not browsers. */
+function probeImage(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.referrerPolicy = "no-referrer";
+    const timer = setTimeout(() => { img.src = ""; resolve(false); }, 15000);
+    img.onload = () => { clearTimeout(timer); resolve(img.naturalWidth > 1); };
+    img.onerror = () => { clearTimeout(timer); resolve(false); };
+    img.src = url;
+  });
+}
 const CHUNK = 10;
 
 export function Importer() {
@@ -40,8 +52,9 @@ export function Importer() {
   const [publish, setPublish] = useState(true);
   const [ratingSource, setRatingSource] = useState("");
   const [checkImages, setCheckImages] = useState(true);
+  const [broken, setBroken] = useState<string[]>([]);
 
-  function reset() { setPreview(null); setResult(null); setProgress(0); }
+  function reset() { setPreview(null); setResult(null); setProgress(0); setBroken([]); }
 
   async function readZip(f: File) {
     setBusy("Reading ZIP…");
@@ -71,18 +84,41 @@ export function Importer() {
       fd.set("defaultStock", defaultStock);
       fd.set("publish", String(publish));
       fd.set("ratingSource", ratingSource);
-      fd.set("checkImages", String(checkImages));
+
       if (file) fd.set("file", file);
       if (kind === "BULK_DELETE") fd.set("skuList", skuList);
       const res = await fetch("/api/admin/import/preview", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if (checkImages) data.rows = await checkLinks(data.rows);
       setPreview(data);
     } catch (e) {
       toast.error((e as Error).message || "Validation failed");
     } finally {
       setBusy(null);
     }
+  }
+
+  async function checkLinks(rows: PreviewRow[]): Promise<PreviewRow[]> {
+    const urls = [...new Set(rows.filter((r) => r.action === "create" || r.action === "update").flatMap((r) => r.images ?? []).filter((u) => /^https?:\/\//i.test(u)))];
+    const bad = new Set<string>();
+    const queue = [...urls];
+    let done = 0;
+    await Promise.all(Array.from({ length: 24 }, async () => {
+      while (queue.length) {
+        const u = queue.shift()!;
+        if (!(await probeImage(u))) bad.add(u);
+        setBusy(`Checking image links ${++done}/${urls.length}…`);
+      }
+    }));
+    setBroken([...bad]);
+    return rows.map((r) => {
+      const failed = (r.images ?? []).map((u, i) => (bad.has(u) ? i + 1 : 0)).filter(Boolean);
+      if (!failed.length) return r;
+      const all = failed.length === r.images!.length;
+      const note = all ? "No image link loads — saved as a draft" : `Image ${failed.join(", ")} didn't load — left out`;
+      return { ...r, warnings: [...(r.warnings ?? []), note] };
+    });
   }
 
   async function commit() {
@@ -119,7 +155,7 @@ export function Importer() {
         setBusy(`Saving rows ${from + 1}–${Math.min(from + CHUNK, preview.rows.length)} of ${preview.rows.length}…`);
         const res = await fetch("/api/admin/import/commit", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId: preview.jobId, from, to: from + CHUNK, imageMap }),
+          body: JSON.stringify({ jobId: preview.jobId, from, to: from + CHUNK, imageMap, dropImages: broken }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -214,7 +250,7 @@ export function Importer() {
             {preview.summary.delete > 0 && <Badge tone="danger">{preview.summary.delete} to remove</Badge>}
             <Badge tone="outline">{preview.summary.skip} skipped</Badge>
             <Badge tone={preview.summary.error ? "danger" : "outline"}>{preview.summary.error} with errors</Badge>
-            {preview.summary.warning > 0 && <Badge tone="gold">{preview.summary.warning} with warnings</Badge>}
+            {preview.rows.some((r) => r.warnings?.length) && <Badge tone="gold">{preview.rows.filter((r) => r.warnings?.length).length} with warnings</Badge>}
           </div>
           {preview.summary.error > 0 && (
             <p className="mt-3 flex items-center gap-2 text-sm text-warning"><AlertTriangle className="size-4" aria-hidden /> Rows with errors will be skipped. Fix them in the file and re-upload, or continue with the valid rows.</p>

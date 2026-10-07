@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const parsed = commitBody.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Bad request" }, { status: 400 });
   const { jobId, from, to, imageMap } = parsed.data;
+  const dropped = new Set(parsed.data.dropImages);
 
   const job = await db.importJob.findUnique({ where: { id: jobId } });
   if (!job || job.actorId !== a.user.id) return Response.json({ error: "Import not found" }, { status: 404 });
@@ -43,6 +44,12 @@ export async function POST(req: Request) {
         continue;
       }
       let images: ImageInput[] | undefined;
+      if (r.images && dropped.size) {
+        const kept = r.images.filter((u) => !dropped.has(u));
+        // Every link broken → keep the product hidden until it gets a working photo.
+        if (kept.length === 0 && r.images.length > 0 && r.data && r.action === "create") r.data = { ...r.data, status: "DRAFT" };
+        r.images = kept;
+      }
       if (r.images && r.images.length) {
         images = [];
         for (const ref of r.images) {

@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       defaultStock: Math.max(0, Math.min(9999, Math.floor(Number(form.get("defaultStock") ?? 1)) || 0)),
       publish: form.get("publish") !== "false",
       ratingSource: String(form.get("ratingSource") ?? "").trim().slice(0, 60) || null,
-      checkImages: form.get("checkImages") !== "false",
+      checkImages: form.get("checkImages") === "server",
     });
     const count = (k: string) => results.filter((r) => r.action === k).length;
     const job = await db.importJob.create({
