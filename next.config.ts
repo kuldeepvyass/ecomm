@@ -43,6 +43,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Sideloaded Android app: correct type so phones offer "Install", and a fresh check each visit.
+        source: "/downloads/:file*.apk",
+        headers: [
+          { key: "Content-Type", value: "application/vnd.android.package-archive" },
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: csp },

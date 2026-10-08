@@ -9,6 +9,7 @@ import { useStore } from "@/components/providers";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { PRIMARY_NAV, SERVICE_LINKS } from "./nav-links";
+import { GetAppButton } from "./get-app";
 import { ThemeToggle } from "./theme-toggle";
 
 // Loaded on first open — keeps Radix Dialog out of the initial bundle.
@@ -85,6 +86,7 @@ export function SiteHeader() {
         </Link>
 
         <div className="flex flex-1 items-center justify-end gap-0.5">
+          <GetAppButton className="mr-1" />
           <button type="button" className={cn(iconBtn, "hidden md:grid")} aria-label="Search (⌘K)" onClick={() => { setSearchUsed(true); setSearchOpen(true); }}>
             <Search className="size-5" aria-hidden />
           </button>
