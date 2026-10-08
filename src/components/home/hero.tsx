@@ -93,9 +93,13 @@ function HeroVideo({ src }: { src: string }) {
     const later = () => setTimeout(start, 600);
     if (document.readyState === "complete") later();
     else window.addEventListener("load", later, { once: true });
+    // Browsers don't autoplay in background tabs; start (or resume) when the visitor switches to it.
+    const onVisible = () => { if (document.visibilityState === "visible" && v.src && v.paused) v.play().catch(() => {}); };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.removeEventListener("load", later);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [src]);
   return (
