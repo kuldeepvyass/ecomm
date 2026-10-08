@@ -2,17 +2,14 @@
 
 import { CheckCircle2, Download, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
-import { isInApp, isIOS } from "@/lib/client/in-app";
+import { clientKind } from "@/lib/client/in-app";
 
-type Mode = "loading" | "app" | "ios" | "android" | "desktop";
+const noop = () => () => {};
 
 export function AppDownload({ apkUrl, size, available, qrSvg }: { apkUrl: string; size: string | null; available: boolean; qrSvg: string | null }) {
-  const [mode, setMode] = useState<Mode>("loading");
-  useEffect(() => {
-    setMode(isInApp() ? "app" : isIOS() ? "ios" : /Android/i.test(navigator.userAgent) ? "android" : "desktop");
-  }, []);
+  const mode = useSyncExternalStore(noop, clientKind, () => "loading" as const);
 
   if (mode === "loading") return <div className="mx-auto mt-10 h-40 max-w-xl" aria-busy />;
   if (mode === "app") {

@@ -24,3 +24,9 @@ export function isInApp(): boolean {
 export function isIOS(): boolean {
   return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
 }
+
+export type ClientKind = "app" | "ios" | "android" | "desktop";
+
+export function clientKind(): ClientKind {
+  return isInApp() ? "app" : isIOS() ? "ios" : /Android/i.test(navigator.userAgent) ? "android" : "desktop";
+}
