@@ -84,17 +84,70 @@ describe("UPI payments with manual UTR verification", () => {
     const usedBefore = (await db.coupon.findUniqueOrThrow({ where: { id: couponId } })).usedCount;
     const unpaid = await makeOrder(4, { dueInMs: -1000 });
     const waiting = await makeOrder(5, { dueInMs: -1000 });
-    await svc.submitUtr(userId, waiting.id, { utr: "600000000001" });
+    await svc.submitUtr(userId, waiting.id, { utr: "731000000001" });
     await svc.expireUnpaidOrders();
     expect((await db.order.findUniqueOrThrow({ where: { id: unpaid.id } })).status).toBe("CANCELLED");
     expect((await db.order.findUniqueOrThrow({ where: { id: waiting.id } })).status).toBe("PAYMENT_SUBMITTED");
     expect((await db.product.findUniqueOrThrow({ where: { id: productId } })).stock).toBe(stockBefore - 1); // only `waiting` still holds a unit
     expect((await db.coupon.findUniqueOrThrow({ where: { id: couponId } })).usedCount).toBe(usedBefore + 1);
-    await expect(svc.submitUtr(userId, unpaid.id, { utr: "600000000002" })).rejects.toThrow(/no longer needs payment/);
+    await expect(svc.submitUtr(userId, unpaid.id, { utr: "731000000002" })).rejects.toThrow(/no longer needs payment/);
   });
 
   it("only the order's owner can submit a UTR", async () => {
     const o = await makeOrder(6);
     await expect(svc.submitUtr(adminId, o.id, { utr: "700000000001" })).rejects.toThrow(/not found/i);
+  });
+});
+
+describe("cancellation refunds go to the customer's bank account", () => {
+  const bank = { accountHolder: "Test Customer", accountNumber: "123456789012", ifsc: "HDFC0001234", bankName: "HDFC Bank", bankBranch: "Fort, Mumbai" };
+
+  async function paidOrder(n: number, utr: string) {
+    const o = await makeOrder(n);
+    await svc.submitUtr(userId, o.id, { utr, payerVpa: "buyer@okaxis" });
+    const p = await db.payment.findFirstOrThrow({ where: { orderId: o.id } });
+    await svc.confirmUpiPayment(p.id, adminId);
+    return o;
+  }
+
+  it("a paid order can't be cancelled without bank details", async () => {
+    const o = await paidOrder(20, "918200000001");
+    await expect(svc.cancelByCustomer(userId, o.id, "Changed my mind")).rejects.toThrow(/bank account/);
+    expect((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status).toBe("PAID");
+  });
+
+  it("cancel with bank details → pending refund carrying them; sending it erases all but the last 4 digits", async () => {
+    const o = await paidOrder(21, "918200000002");
+    await svc.cancelByCustomer(userId, o.id, "Changed my mind", bank);
+    const r = await db.refund.findFirstOrThrow({ where: { orderId: o.id } });
+    expect(r).toMatchObject({ status: "PENDING", amount: 19000, accountNumber: "123456789012", accountLast4: "9012", ifsc: "HDFC0001234", bankName: "HDFC Bank" });
+    expect(r.bankDetailsAt).toBeInstanceOf(Date);
+
+    await svc.completeRefund(r.id, "IMPS123456", adminId);
+    const done = await db.refund.findUniqueOrThrow({ where: { id: r.id } });
+    expect(done).toMatchObject({ status: "PROCESSED", reference: "IMPS123456", accountNumber: null, accountLast4: "9012" });
+    expect(done.processedAt).toBeInstanceOf(Date);
+    expect((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status).toBe("REFUNDED");
+  });
+
+  it("store-cancelled refund: only the owner can add bank details, and only while a refund is pending", async () => {
+    const o = await paidOrder(22, "918200000003");
+    await svc.transitionOrder(o.id, "CANCELLED", { id: adminId, label: "admin" }, { note: "Cancelled by store: test" });
+    await svc.issueRefund(o.id, null, "Cancelled by store", adminId);
+    expect((await db.refund.findFirstOrThrow({ where: { orderId: o.id } })).bankDetailsAt).toBeNull();
+
+    await expect(svc.setRefundBankDetails(adminId, o.id, bank)).rejects.toThrow(/not found/i);
+    await svc.setRefundBankDetails(userId, o.id, bank);
+    const r = await db.refund.findFirstOrThrow({ where: { orderId: o.id } });
+    expect(r.accountLast4).toBe("9012");
+
+    await svc.completeRefund(r.id, "NEFT998877", adminId);
+    await expect(svc.setRefundBankDetails(userId, o.id, bank)).rejects.toThrow(/no refund waiting/i);
+  });
+
+  it("an unpaid order cancels without bank details and creates no refund", async () => {
+    const o = await makeOrder(23);
+    await svc.cancelByCustomer(userId, o.id, "Ordered by mistake");
+    expect(await db.refund.count({ where: { orderId: o.id } })).toBe(0);
   });
 });

@@ -14,6 +14,7 @@ import { formatINR, toPaise } from "@/lib/money";
 import { computeOrderTotals, computeShippingFee, type OrderTotals } from "@/lib/orders/totals";
 import { assertTransition, awaitingPayment, isCustomerCancellable, isReturnEligible, restoresStock } from "@/lib/orders/transitions";
 import { UTR_REGEX, normalizeUtr } from "@/lib/upi";
+import type { BankDetails } from "@/lib/validation/bank";
 import { logAudit } from "@/server/audit";
 import { couponUsageFor, toCouponRule } from "@/server/cart/service";
 import { estimateDelivery } from "@/server/delivery";
@@ -436,7 +437,7 @@ export async function transitionOrder(orderId: string, to: OrderStatus, actor: {
  * enters the transfer reference (UTR). Without a reference the refund is logged as PENDING.
  * amount=null → full remaining amount.
  */
-export async function issueRefund(orderId: string, amount: number | null, reason: string, actorId: string | null = null, reference: string | null = null) {
+export async function issueRefund(orderId: string, amount: number | null, reason: string, actorId: string | null = null, reference: string | null = null, bank: BankDetails | null = null) {
   const order = await db.order.findUniqueOrThrow({ where: { id: orderId }, include: { payments: true, refunds: true } });
   const refunded = order.refunds.filter((r) => r.status !== "FAILED").reduce((s, r) => s + r.amount, 0);
   const remaining = order.grandTotal - refunded;
@@ -448,7 +449,12 @@ export async function issueRefund(orderId: string, amount: number | null, reason
     await db.payment.update({ where: { id: confirmed.id }, data: { status: value === remaining && refunded === 0 ? "REFUNDED" : "PARTIALLY_REFUNDED" } });
   }
   const ref = reference?.trim() || null;
-  await db.refund.create({ data: { orderId, reference: ref, amount: value, status: ref ? "PROCESSED" : "PENDING", reason } });
+  await db.refund.create({
+    data: {
+      orderId, reference: ref, amount: value, status: ref ? "PROCESSED" : "PENDING", reason, processedAt: ref ? new Date() : null,
+      ...(bank && !ref ? bankFields(bank) : {}),
+    },
+  });
   if (actorId) await logAudit({ actorId, action: "order.refund", entityType: "Order", entityId: orderId, diff: { amount: [null, value], reference: [null, ref], reason: [null, reason] } });
 
   const fullyRefunded = refunded + value >= order.grandTotal;
@@ -457,9 +463,34 @@ export async function issueRefund(orderId: string, amount: number | null, reason
   }
 }
 
-/** Marks a pending refund as sent, with the transfer reference. */
+function bankFields(bank: BankDetails) {
+  return {
+    accountHolder: bank.accountHolder, accountNumber: bank.accountNumber, accountLast4: bank.accountNumber.slice(-4),
+    ifsc: bank.ifsc, bankName: bank.bankName, bankBranch: bank.bankBranch || null, bankDetailsAt: new Date(),
+  };
+}
+
+/**
+ * Customer adds (or corrects) where their refund should go — for refunds the store logged
+ * (admin cancellation, approved return) or details they want to change before it's sent.
+ */
+export async function setRefundBankDetails(userId: string, orderId: string, bank: BankDetails) {
+  const order = await db.order.findFirst({ where: { id: orderId, userId }, select: { id: true } });
+  if (!order) throw new CheckoutError("Order not found.");
+  const { count } = await db.refund.updateMany({ where: { orderId, status: "PENDING" }, data: bankFields(bank) });
+  if (count === 0) throw new CheckoutError("There's no refund waiting on this order.");
+}
+
+/**
+ * Marks a pending refund as sent, with the transfer reference. The full account number is erased —
+ * only the last 4 digits stay, so the customer can recognise where the money went.
+ */
 export async function completeRefund(refundId: string, reference: string, actorId: string) {
-  const r = await db.refund.update({ where: { id: refundId }, data: { reference: reference.trim(), status: "PROCESSED" }, include: { order: { include: { refunds: true } } } });
+  const r = await db.refund.update({
+    where: { id: refundId },
+    data: { reference: reference.trim(), status: "PROCESSED", processedAt: new Date(), accountNumber: null },
+    include: { order: { include: { refunds: true } } },
+  });
   await logAudit({ actorId, action: "order.refund.complete", entityType: "Refund", entityId: refundId, diff: { reference: [null, reference] } });
   const done = r.order.refunds.filter((x) => x.status === "PROCESSED").reduce((s, x) => s + x.amount, 0);
   if (done >= r.order.grandTotal && (r.order.status === "CANCELLED" || r.order.status === "RETURNED")) {
@@ -469,15 +500,19 @@ export async function completeRefund(refundId: string, reference: string, actorI
 
 // ───────────────────────── Customer actions ─────────────────────────
 
-export async function cancelByCustomer(userId: string, orderId: string, reason: string) {
+/** Has the customer (possibly) paid? Then a cancellation needs a refund — and their bank details. */
+export const refundOnCancel = (status: OrderStatus) => ["PAYMENT_SUBMITTED", "PAID", "PROCESSING"].includes(status);
+
+export async function cancelByCustomer(userId: string, orderId: string, reason: string, bank: BankDetails | null = null) {
   const order = await db.order.findFirst({ where: { id: orderId, userId }, include: { payments: true } });
   if (!order) throw new CheckoutError("Order not found.");
   if (!isCustomerCancellable(order.status)) throw new CheckoutError("This order has already shipped and can no longer be cancelled. You can request a return after delivery.");
-  const moneyMayHaveArrived = ["PAYMENT_SUBMITTED", "PAID", "PROCESSING"].includes(order.status);
+  const moneyMayHaveArrived = refundOnCancel(order.status);
+  if (moneyMayHaveArrived && !bank) throw new CheckoutError("Add the bank account we should send your refund to.");
   await transitionOrder(orderId, "CANCELLED", { id: null, label: "customer" }, { note: `Cancelled by customer: ${reason}` });
-  // Logged as a pending refund; the store sends it back to the customer's UPI and records the reference.
+  // Logged as a pending refund with the customer's bank details; the store transfers it and records the reference.
   if (moneyMayHaveArrived) {
-    await issueRefund(orderId, null, order.status === "PAYMENT_SUBMITTED" ? "Customer cancelled while payment was being verified — refund once receipt is confirmed" : "Customer cancellation");
+    await issueRefund(orderId, null, order.status === "PAYMENT_SUBMITTED" ? "Customer cancelled while payment was being verified — refund once receipt is confirmed" : "Customer cancellation", null, null, bank);
   }
 }
 

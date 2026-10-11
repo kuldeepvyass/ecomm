@@ -105,6 +105,7 @@ test("checkout with a new address, pay by UPI and submit the UTR", async () => {
   await customer.getByTestId("open-utr").click();
   utr = String(Date.now()).slice(-12).padStart(12, "4");
   await customer.getByTestId("utr-input").fill(utr);
+  await customer.getByTestId("payer-vpa").fill("e2e.customer@okaxis");
   await customer.getByTestId("submit-utr").click();
   const pending = customer.getByTestId("payment-pending");
   await expect(pending).toContainText("Payment verification pending");

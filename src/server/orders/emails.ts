@@ -14,11 +14,11 @@ const COPY: Partial<Record<OrderStatus, { subject: string; headline: string; mes
   SHIPPED: { subject: "Your order has shipped", headline: "Your watch is on its way", message: () => "Your parcel has left our boutique, fully insured. A signature will be required on delivery." },
   OUT_FOR_DELIVERY: { subject: "Out for delivery today", headline: "Arriving today", message: () => "Your parcel is out for delivery. Please keep a photo ID handy — a signature is required." },
   DELIVERED: { subject: "Delivered — enjoy your watch", headline: "Delivered", message: () => "We hope it brings you joy for many years. If you have a moment, we'd love your review." },
-  CANCELLED: { subject: "Your order has been cancelled", headline: "Order cancelled", message: () => "Your order has been cancelled. If you had already paid by UPI, we'll refund the full amount to the same UPI account and email you the reference." },
+  CANCELLED: { subject: "Your order has been cancelled", headline: "Order cancelled", message: () => "Your order has been cancelled. If you had already paid, we'll refund the full amount by bank transfer. If we don't have your bank details yet, please add them on your order page (Account → Orders) — we'll email you the moment the refund is sent." },
   PAYMENT_FAILED: { subject: "Action needed: we couldn't verify your payment", headline: "We couldn't verify your payment", message: () => "We couldn't match the UPI reference you submitted with a payment received. Please check the 12-digit UTR in your UPI app and submit it again from your order page — your watch stays reserved for a little longer. If money left your account, reply to this email and we'll sort it out." },
   RETURN_REQUESTED: { subject: "Return request received", headline: "We've received your return request", message: () => "Our client services team will contact you within one business day to arrange an insured pickup." },
   RETURNED: { subject: "Return received", headline: "Your return has arrived", message: () => "We've received and inspected your return. Your refund is being processed." },
-  REFUNDED: { subject: "Refund processed", headline: "Your refund has been sent", message: () => "Your refund has been sent to your UPI / bank account. UPI refunds usually arrive within minutes; bank transfers can take up to 2 business days." },
+  REFUNDED: { subject: "Refund processed", headline: "Your refund has been sent", message: () => "Your refund has been sent to your bank account. Bank transfers can take up to 2 business days to show in your statement — the transfer reference is on your order page." },
 };
 
 /** Emails the customer about a status change (respecting nothing optional — these are transactional). */

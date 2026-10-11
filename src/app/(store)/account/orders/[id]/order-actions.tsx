@@ -9,12 +9,16 @@ import { useStore } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
+import { BankDetailsFields, EMPTY_BANK, readBank, type BankDraft } from "@/components/account/bank-details-fields";
+import { formatINR } from "@/lib/money";
 import { cancelMyOrder, reorder, requestReturn } from "@/server/actions/account";
 
 const RETURN_REASONS = ["Doesn't fit my wrist", "Not as expected", "Arrived damaged", "Received the wrong item", "Changed my mind", "Other"];
 
-export function OrderActions({ orderId, canCancel, canReturn, canPay, hasInvoice, returnWindowDays }: {
+export function OrderActions({ orderId, canCancel, canReturn, canPay, hasInvoice, returnWindowDays, refundAmount }: {
   orderId: string; canCancel: boolean; canReturn: boolean; canPay: boolean; hasInvoice: boolean; returnWindowDays: number;
+  /** Set when the customer has (possibly) paid: cancelling needs bank details for the refund. */
+  refundAmount?: number | null;
 }) {
   const router = useRouter();
   const { refresh } = useStore();
@@ -24,6 +28,9 @@ export function OrderActions({ orderId, canCancel, canReturn, canPay, hasInvoice
   const [reason, setReason] = useState("");
   const [type, setType] = useState<"RETURN" | "EXCHANGE">("RETURN");
   const [details, setDetails] = useState("");
+  const [bank, setBank] = useState<BankDraft>(EMPTY_BANK);
+  const needsBank = Boolean(refundAmount);
+  const bankValue = needsBank ? readBank(bank).value : null;
 
   return (
     <div className="flex flex-wrap gap-3">
@@ -40,12 +47,13 @@ export function OrderActions({ orderId, canCancel, canReturn, canPay, hasInvoice
       })}><ShoppingBag aria-hidden /> Buy again</Button>
 
       {canCancel && (
-        <Sheet open={cancelOpen} onOpenChange={setCancelOpen} title="Cancel order" description="Cancel any time before your order ships."
+        <Sheet open={cancelOpen} onOpenChange={setCancelOpen} title="Cancel order"
+          description={needsBank ? `Cancel any time before your order ships. Your ${formatINR(refundAmount!)} refund goes to the bank account below.` : "Cancel any time before your order ships."}
           trigger={<Button variant="ghost" className="text-danger" data-testid="cancel-order"><X aria-hidden /> Cancel order</Button>}
-          footer={<Button variant="danger" block loading={pending} disabled={!reason} onClick={() => start(async () => {
-            const res = await cancelMyOrder(orderId, reason);
+          footer={<Button variant="danger" block loading={pending} disabled={!reason || (needsBank && !bankValue)} data-testid="confirm-cancel" onClick={() => start(async () => {
+            const res = await cancelMyOrder(orderId, reason, bankValue ?? undefined);
             if (!res.ok) return void toast.error(res.error);
-            toast.success("Order cancelled. If you already paid, we'll refund it to your UPI account.");
+            toast.success(needsBank ? "Order cancelled. We'll transfer your refund to your bank account and let you know when it's sent." : "Order cancelled.");
             setCancelOpen(false);
             router.refresh();
           })}>Confirm cancellation</Button>}>
@@ -57,6 +65,7 @@ export function OrderActions({ orderId, canCancel, canReturn, canPay, hasInvoice
               </Select>
             )}
           </Field>
+          {needsBank && <div className="mt-6 border-t border-border pt-5"><BankDetailsFields value={bank} onChange={setBank} /></div>}
         </Sheet>
       )}
 

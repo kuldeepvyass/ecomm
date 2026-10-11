@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/admin-shell";
@@ -57,7 +58,8 @@ export default async function AdminOrder({ params }: PageProps<"/admin/orders/[i
         </section>
       )}
 
-      <OrderControls orderId={o.id} status={o.status} next={TRANSITIONS[o.status].filter((x) => !["PAID", "PAYMENT_SUBMITTED", "PAYMENT_FAILED"].includes(x))} refundable={refundable}
+      <OrderControls orderId={o.id} status={o.status} next={TRANSITIONS[o.status].filter((x) => !["PAID", "PAYMENT_SUBMITTED", "PAYMENT_FAILED", "CANCELLED"].includes(x))} refundable={refundable}
+        canCancel={TRANSITIONS[o.status].includes("CANCELLED")} orderNumber={o.orderNumber} paidTotal={received ? o.grandTotal : 0}
         tracking={{ courierName: o.courierName ?? "", trackingNumber: o.trackingNumber ?? "", trackingUrl: o.trackingUrl ?? "" }}
         returns={o.returns.map((r) => ({ id: r.id, type: r.type, reason: r.reason, details: r.details, status: r.status }))} />
 
@@ -94,7 +96,11 @@ export default async function AdminOrder({ params }: PageProps<"/admin/orders/[i
             <PriceBreakdown mrpTotal={o.mrpTotal} itemsTotal={o.itemsTotal} couponDiscount={o.couponDiscount} couponCode={o.couponCode} shippingFee={o.shippingFee} total={o.grandTotal} />
             <p className="mt-3 text-xs text-fg-muted">Taxable {formatINR(o.taxableValue)} · {o.igst ? `IGST ${formatINR(o.igst)}` : `CGST ${formatINR(o.cgst)} + SGST ${formatINR(o.sgst)}`}</p>
             <ul className="mt-3 space-y-1 text-xs text-fg-muted">
-              {o.refunds.map((r) => <li key={r.id} className={r.status === "PENDING" ? "text-warning" : "text-success"}>Refund {formatINR(r.amount)} · {r.status === "PENDING" ? "to send" : `sent · ref ${r.reference}`} · {r.reason}</li>)}
+              {o.refunds.map((r) => (
+                <li key={r.id} className={r.status === "PENDING" ? "text-warning" : "text-success"}>
+                  Refund {formatINR(r.amount)} · {r.status === "PENDING" ? (r.bankDetailsAt ? <>to send to A/c ••{r.accountLast4} {r.ifsc} · <Link href="/admin/payments?tab=refunds" className="underline">send it</Link></> : "waiting for customer's bank details") : `sent${r.accountLast4 ? ` to A/c ••${r.accountLast4}` : ""} · ref ${r.reference}`} · {r.reason}
+                </li>
+              ))}
             </ul>
           </section>
         </div>

@@ -49,7 +49,8 @@ export async function submitOrder(input: z.input<typeof base> & { idempotencyKey
 const utrSchema = z.object({
   orderId: z.string().cuid(),
   utr: z.string().trim().transform((v) => v.replace(/\D/g, "")).pipe(z.string().regex(/^\d{12}$/, "The UTR is the 12-digit number shown in your UPI app")),
-  payerVpa: z.union([z.literal(""), z.string().trim().regex(VPA_REGEX, "That doesn't look like a UPI ID (e.g. name@okaxis)")]).optional(),
+  // Required: identifies the payment in our statement and is a fallback for small refunds.
+  payerVpa: z.string().trim().min(1, "Enter the UPI ID you paid from").regex(VPA_REGEX, "That doesn't look like a UPI ID (e.g. name@okaxis)"),
   payerName: z.string().trim().max(80).optional(),
   screenshot: z.object({ url: z.string().max(600), publicId: z.string().max(300).optional() }).nullable().optional(),
 });

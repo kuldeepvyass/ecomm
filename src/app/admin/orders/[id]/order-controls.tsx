@@ -13,8 +13,10 @@ import { decideReturn, refundOrder, saveTracking, updateOrderStatus } from "@/se
 
 const COURIERS = ["Blue Dart", "Delhivery", "DTDC", "Ecom Express", "India Post (Speed Post)", "Shiprocket", "Xpressbees", "Other"];
 
-export function OrderControls({ orderId, status, next, refundable, tracking, returns }: {
-  orderId: string; status: OrderStatus; next: OrderStatus[]; refundable: number;
+export function OrderControls({ orderId, orderNumber, status, next, refundable, canCancel, paidTotal, tracking, returns }: {
+  orderId: string; orderNumber: string; status: OrderStatus; next: OrderStatus[]; refundable: number;
+  /** Cancel lives in its own box (not the status dropdown) so it's never selected by default. */
+  canCancel: boolean; paidTotal: number;
   tracking: { courierName: string; trackingNumber: string; trackingUrl: string };
   returns: { id: string; type: string; reason: string; details: string | null; status: string }[];
 }) {
@@ -26,6 +28,7 @@ export function OrderControls({ orderId, status, next, refundable, tracking, ret
   const [refundAmt, setRefundAmt] = useState("");
   const [refundReason, setRefundReason] = useState("");
   const [refundRef, setRefundRef] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
 
   const act = (fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
     start(async () => { const r = await fn(); if (r.ok) { toast.success(r.message ?? "Done"); router.refresh(); } else toast.error(r.error); });
@@ -56,6 +59,24 @@ export function OrderControls({ orderId, status, next, refundable, tracking, ret
           </div>
         )}
       </section>
+
+      {canCancel && (
+        <section className="border border-danger/40 p-4" aria-labelledby="cancel-h">
+          <h2 id="cancel-h" className="mb-1 text-xl">Cancel order</h2>
+          <p className="mb-3 text-sm text-fg-muted">
+            The watch goes back into stock and the customer is emailed.
+            {paidTotal > 0 ? ` A ${formatINR(paidTotal)} refund is logged; the customer is asked for bank details, then it appears in Payments → Refunds to send.` : status === "PAYMENT_SUBMITTED" ? " Their UTR is still unverified — confirm or reject it first if you can." : " Nothing has been paid."}
+          </p>
+          <Field label="Reason (shown to the customer)" required>
+            {(p) => <Input {...p} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="e.g. Out of stock at the supplier" data-testid="admin-cancel-reason" />}
+          </Field>
+          <Button variant="danger" className="mt-3" loading={pending} disabled={cancelReason.trim().length < 3} data-testid="admin-cancel-order"
+            onClick={() => {
+              if (!confirm(`Cancel ${orderNumber}?${paidTotal > 0 ? ` A refund of ${formatINR(paidTotal)} will be logged.` : ""}`)) return;
+              act(() => updateOrderStatus({ orderId, to: "CANCELLED", note: `Cancelled by store: ${cancelReason.trim()}` }));
+            }}>Cancel order</Button>
+        </section>
+      )}
 
       <section className="border border-border p-4" aria-labelledby="track-h">
         <h2 id="track-h" className="mb-3 text-xl">Courier & tracking</h2>

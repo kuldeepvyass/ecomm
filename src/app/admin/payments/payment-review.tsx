@@ -58,3 +58,17 @@ export function RefundSent({ refundId }: { refundId: string }) {
     </form>
   );
 }
+
+/** Value with a one-tap copy button (bank details for the refund transfer). */
+export function CopyValue({ value, mono }: { value: string; mono?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={mono ? "font-mono tracking-wide" : undefined}>{value}</span>
+      <button type="button" className="min-h-9 text-xs text-gold underline underline-offset-4" aria-label={`Copy ${value}`}
+        onClick={() => { void navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}>
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </span>
+  );
+}

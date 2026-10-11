@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { formatINR } from "@/lib/money";
-import { UTR_HELP } from "@/lib/upi";
+import { UTR_HELP, VPA_REGEX } from "@/lib/upi";
 import { cn } from "@/lib/utils";
 import { getPaymentState, submitPaymentUtr } from "@/server/actions/checkout";
 
@@ -248,8 +248,8 @@ function UtrDialog({ open, onOpenChange, orderId, amountLabel, onDone }: {
                 {UTR_HELP.map((h) => <li key={h.app} className="py-1"><strong className="text-fg">{h.app}:</strong> {h.where}</li>)}
               </ul>
             </details>
-            <Field label="Your UPI ID (optional)" error={errors.payerVpa} hint="Helps us find your payment faster">
-              {(p) => <Input {...p} value={vpa} onChange={(e) => setVpa(e.target.value)} placeholder="name@okaxis" autoComplete="off" autoCapitalize="none" />}
+            <Field label="UPI ID you paid from" required error={errors.payerVpa} hint="Shown in your UPI app's payment details, e.g. name@okaxis">
+              {(p) => <Input {...p} value={vpa} onChange={(e) => setVpa(e.target.value)} placeholder="name@okaxis" autoComplete="off" autoCapitalize="none" data-testid="payer-vpa" />}
             </Field>
             <div>
               <p className="eyebrow mb-2 text-fg-muted">Payment screenshot (optional)</p>
@@ -264,7 +264,7 @@ function UtrDialog({ open, onOpenChange, orderId, amountLabel, onDone }: {
               )}
             </div>
             {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
-            <Button type="submit" block size="lg" loading={pending} disabled={digits.length !== 12 || uploading} data-testid="submit-utr">Submit for verification</Button>
+            <Button type="submit" block size="lg" loading={pending} disabled={digits.length !== 12 || !VPA_REGEX.test(vpa.trim()) || uploading} data-testid="submit-utr">Submit for verification</Button>
             <p className="text-center text-xs text-fg-subtle">We verify every payment by hand against our bank statement — usually within a few hours.</p>
           </form>
         </Dialog.Content>

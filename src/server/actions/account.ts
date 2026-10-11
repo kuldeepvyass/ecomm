@@ -8,7 +8,9 @@ import { db } from "@/lib/db";
 import { MOBILE_REGEX, normalizeMobile } from "@/lib/india";
 import { assertUser } from "@/lib/session";
 import { sanitizeText } from "@/lib/text";
-import { CheckoutError, cancelByCustomer, requestReturnByCustomer } from "@/server/orders/service";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { IFSC_REGEX, bankDetailsSchema, type BankDetails } from "@/lib/validation/bank";
+import { CheckoutError, cancelByCustomer, requestReturnByCustomer, setRefundBankDetails } from "@/server/orders/service";
 import { addToBag } from "./cart";
 import { ok, runAction, UserFacingError, type ActionResult } from "./result";
 
@@ -49,13 +51,49 @@ function wrap<T>(fn: () => Promise<T>) {
   });
 }
 
-export async function cancelMyOrder(orderId: string, reason: string): Promise<ActionResult<null>> {
+/** Bank details arrive as plain fields; names are sanitised before storage. */
+function parseBank(input: unknown): BankDetails {
+  const b = bankDetailsSchema.parse(input);
+  return { ...b, accountHolder: sanitizeText(b.accountHolder, 80), bankName: sanitizeText(b.bankName, 80), bankBranch: b.bankBranch ? sanitizeText(b.bankBranch, 120) : undefined };
+}
+
+export async function cancelMyOrder(orderId: string, reason: string, bank?: unknown): Promise<ActionResult<null>> {
   return wrap(async () => {
     const user = await assertUser();
-    await cancelByCustomer(user.id, z.string().cuid().parse(orderId), sanitizeText(z.string().min(2, "Tell us why").max(300).parse(reason), 300));
+    await enforceRateLimit("order-cancel", user.id, 10, 60 * 60);
+    await cancelByCustomer(user.id, z.string().cuid().parse(orderId), sanitizeText(z.string().min(2, "Tell us why").max(300).parse(reason), 300), bank ? parseBank(bank) : null);
     revalidatePath(`/account/orders/${orderId}`);
     return null;
   });
+}
+
+/** Customer adds/corrects the account for a refund the store has logged. */
+export async function saveRefundBankDetails(orderId: string, bank: unknown): Promise<ActionResult<null>> {
+  return wrap(async () => {
+    const user = await assertUser();
+    await enforceRateLimit("refund-bank", user.id, 10, 60 * 60);
+    await setRefundBankDetails(user.id, z.string().cuid().parse(orderId), parseBank(bank));
+    revalidatePath(`/account/orders/${orderId}`);
+    return null;
+  });
+}
+
+/**
+ * IFSC → bank and branch, via Razorpay's free public IFSC directory (no key, no customer data sent —
+ * only the IFSC). Returns null when unknown or unreachable; the customer can still type the bank name.
+ */
+export async function lookupIfsc(ifsc: string): Promise<{ bank: string; branch: string } | null> {
+  const code = String(ifsc ?? "").trim().toUpperCase();
+  if (!IFSC_REGEX.test(code)) return null;
+  await assertUser();
+  try {
+    const res = await fetch(`https://ifsc.razorpay.com/${code}`, { signal: AbortSignal.timeout(4000), next: { revalidate: 60 * 60 * 24 * 30 } });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { BANK?: string; BRANCH?: string; CITY?: string };
+    return j.BANK ? { bank: j.BANK, branch: [j.BRANCH, j.CITY].filter(Boolean).join(", ") } : null;
+  } catch {
+    return null;
+  }
 }
 
 const returnSchema = z.object({

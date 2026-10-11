@@ -12,7 +12,9 @@ import { formatINR } from "@/lib/money";
 import { isCustomerCancellable, isReturnEligible } from "@/lib/orders/transitions";
 import { requireUser } from "@/lib/session";
 import { getSettings } from "@/server/settings";
+import { refundOnCancel } from "@/server/orders/service";
 import { OrderActions } from "./order-actions";
+import { RefundPanel, type RefundView } from "./refund-panel";
 
 export const metadata: Metadata = { title: "Order details", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -26,7 +28,8 @@ export default async function OrderPage({ params }: PageProps<"/account/orders/[
       include: {
         items: { include: { product: { select: { slug: true, brand: { select: { slug: true } } } }, review: { select: { id: true, status: true } } } },
         events: { orderBy: { createdAt: "asc" } },
-        refunds: true,
+        // Never the full account number: the customer sees last 4 digits only.
+        refunds: { orderBy: { createdAt: "asc" }, select: { id: true, amount: true, status: true, reference: true, accountLast4: true, bankName: true, bankDetailsAt: true, processedAt: true } },
         payments: { orderBy: { createdAt: "desc" } },
         returns: { orderBy: { createdAt: "desc" } },
       },
@@ -35,7 +38,14 @@ export default async function OrderPage({ params }: PageProps<"/account/orders/[
   ]);
   if (!order) notFound();
   const delivered = order.status === "DELIVERED" || order.status === "RETURN_REQUESTED";
-  const refundTotal = order.refunds.filter((r) => r.status !== "FAILED").reduce((s, r) => s + r.amount, 0);
+  const refundTotal = order.refunds.filter((r) => r.status === "PROCESSED").reduce((s, r) => s + r.amount, 0);
+  const refunds: RefundView[] = order.refunds.map((r) => ({
+    id: r.id, amount: r.amount, status: r.status, reference: r.reference, accountLast4: r.accountLast4, bankName: r.bankName,
+    hasBank: Boolean(r.bankDetailsAt), processedAt: r.processedAt?.toISOString() ?? null,
+    awaitingVerification: order.payments.length > 0 && !order.payments.some((p) => p.status === "CONFIRMED" || p.status === "REFUNDED" || p.status === "PARTIALLY_REFUNDED"),
+  }));
+  // Money may have arrived → cancelling needs a bank account for the refund.
+  const paidAmount = refundOnCancel(order.status) ? order.grandTotal : null;
 
   return (
     <div className="flex flex-col gap-10">
@@ -54,7 +64,9 @@ export default async function OrderPage({ params }: PageProps<"/account/orders/[
         canCancel={isCustomerCancellable(order.status)}
         canReturn={isReturnEligible(order.status, order.deliveredAt, settings.returnWindowDays)}
         canPay={order.status === "PENDING_PAYMENT" || order.status === "PAYMENT_FAILED"}
-        hasInvoice={Boolean(order.invoiceNumber)} returnWindowDays={settings.returnWindowDays} />
+        hasInvoice={Boolean(order.invoiceNumber)} returnWindowDays={settings.returnWindowDays} refundAmount={paidAmount} />
+
+      {refunds.length > 0 && <RefundPanel orderId={order.id} refunds={refunds} />}
 
       <section aria-labelledby="track-heading" className="border border-border p-5 md:p-8">
         <h2 id="track-heading" className="mb-6 text-2xl">Tracking</h2>
@@ -99,7 +111,7 @@ export default async function OrderPage({ params }: PageProps<"/account/orders/[
             {order.payments.length > 0 && (
               <ul className="mt-4 space-y-1 border-t border-border pt-3 text-xs text-fg-muted" data-testid="payment-history">
                 {order.payments.map((p) => (
-                  <li key={p.id}>UPI · UTR <span className="font-mono text-fg">{p.utr}</span> · {p.status === "SUBMITTED" ? "verification pending" : p.status === "CONFIRMED" ? "verified" : p.status === "REJECTED" ? `not verified${p.rejectReason ? ` — ${p.rejectReason}` : ""}` : p.status.toLowerCase().replace("_", " ")}</li>
+                  <li key={p.id}>UPI{p.payerVpa ? <> from <span className="font-mono text-fg">{p.payerVpa}</span></> : null} · UTR <span className="font-mono text-fg">{p.utr}</span> · {p.status === "SUBMITTED" ? "verification pending" : p.status === "CONFIRMED" ? "verified" : p.status === "REJECTED" ? `not verified${p.rejectReason ? ` — ${p.rejectReason}` : ""}` : p.status.toLowerCase().replace("_", " ")}</li>
                 ))}
               </ul>
             )}

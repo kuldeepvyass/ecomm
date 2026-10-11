@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { expireUnpaidOrders } from "@/server/orders/service";
 import { readSettings } from "@/server/settings";
-import { PaymentReview, RefundSent } from "./payment-review";
+import { CopyValue, PaymentReview, RefundSent } from "./payment-review";
 
 export const metadata: Metadata = { title: "Payments" };
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export default async function Payments({ searchParams }: PageProps<"/admin/payme
   const [settings, toVerify, refunds, reviewed, awaiting, counts] = await Promise.all([
     readSettings(),
     db.payment.findMany({ where: { status: "SUBMITTED" }, orderBy: { createdAt: "asc" }, include: { order: { include: { user: { select: { email: true } } } } } }),
-    db.refund.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "asc" }, include: { order: { include: { user: { select: { email: true } }, payments: { where: { status: { in: ["CONFIRMED", "SUBMITTED", "REFUNDED", "PARTIALLY_REFUNDED"] } } } } } } }),
+    db.refund.findMany({ where: { status: "PENDING" }, orderBy: [{ bankDetailsAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }], include: { order: { include: { user: { select: { email: true } }, payments: { where: { status: { in: ["CONFIRMED", "SUBMITTED", "REFUNDED", "PARTIALLY_REFUNDED"] } } } } } } }),
     db.payment.findMany({ where: { status: { not: "SUBMITTED" } }, orderBy: { reviewedAt: "desc" }, take: 40, include: { order: true, reviewedBy: { select: { email: true } } } }),
     db.order.findMany({ where: { status: { in: ["PENDING_PAYMENT", "PAYMENT_FAILED"] } }, orderBy: { createdAt: "desc" }, include: { user: { select: { email: true } } } }),
     Promise.all([db.payment.count({ where: { status: "SUBMITTED" } }), db.refund.count({ where: { status: "PENDING" } })]),
@@ -85,10 +85,20 @@ export default async function Payments({ searchParams }: PageProps<"/admin/payme
                     <Link href={`/admin/orders/${r.orderId}`} className="font-medium hover:text-gold">{r.order.orderNumber}</Link>
                     <p className="text-xs text-fg-muted">{r.order.shipName} · {r.order.user.email}</p>
                     <p className="mt-1 text-sm">{r.reason}</p>
-                    <p className="mt-1 text-xs text-fg-muted">Send to: {r.order.payments.map((p) => p.payerVpa).filter(Boolean)[0] ?? "the UPI account that paid (see UTR " + (r.order.payments[0]?.utr ?? "—") + ")"}</p>
+                    <p className="mt-1 text-xs text-fg-muted">Paid from UPI ID: <span className="font-mono text-fg">{r.order.payments.map((p) => p.payerVpa).filter(Boolean)[0] ?? "not given"}</span> · UTR {r.order.payments[0]?.utr ?? "—"}</p>
                   </div>
                   <p className="font-display text-2xl">{formatINR(r.amount)}</p>
                 </div>
+                {r.bankDetailsAt ? (
+                  <dl className="mt-3 grid gap-x-6 gap-y-2 border border-border bg-surface p-3 text-sm sm:grid-cols-2" data-testid="refund-bank">
+                    <div><dt className="text-xs text-fg-muted">Account holder</dt><dd><CopyValue value={r.accountHolder ?? ""} /></dd></div>
+                    <div><dt className="text-xs text-fg-muted">Account number</dt><dd><CopyValue value={r.accountNumber ?? ""} mono /></dd></div>
+                    <div><dt className="text-xs text-fg-muted">IFSC</dt><dd><CopyValue value={r.ifsc ?? ""} mono /></dd></div>
+                    <div><dt className="text-xs text-fg-muted">Bank</dt><dd>{r.bankName}{r.bankBranch ? <span className="text-fg-muted"> · {r.bankBranch}</span> : null}</dd></div>
+                  </dl>
+                ) : (
+                  <p className="mt-3 border border-warning/50 bg-warning/10 p-3 text-sm">Waiting for the customer&apos;s bank details — they&apos;re asked on their order page. For a small amount you can refund to their UPI ID instead.</p>
+                )}
                 <RefundSent refundId={r.id} />
               </li>
             ))}

@@ -75,3 +75,11 @@ _Last updated: 2026-10-07 (final local build)_
 - Sample data removed (20 products, 228 reviews, 3 brands; 2 referenced by old test orders kept hidden) → Preview-mode banner gone. Test accounts kept for now.
 - Light-theme status colours darkened (success/danger/warning badges failed WCAG contrast on the admin table).
 - Vitest 53/53, typecheck + lint clean, **Playwright 96/96**.
+
+## Change: cancellations & bank-transfer refunds ✅ (2026-10-11)
+- Customer cancels until shipping; a paid order asks for bank details (holder, account no. ×2, IFSC → bank/branch auto-filled via ifsc.razorpay.com, bank name). Refunds go by bank transfer (UPI caps ~₹1 lakh/day).
+- Admin cancel moved out of the status dropdown (it was pre-selected for unpaid orders) into its own box with a required reason; paid → pending refund, customer asked for bank details on their order page + email.
+- Payer UPI ID is now required with the UTR.
+- Admin → Payments → Refunds to send: bank details with copy buttons + payer UPI ID; "Mark refund sent" with reference → order REFUNDED, customer emailed, full account number erased (last 4 kept).
+- Customer order page: refund panel — needs bank details / being processed (••••1234) / refund successful (amount, bank, date, reference).
+- Vitest 58/58 (4 new refund integration tests + bank validation), Playwright 96/96.

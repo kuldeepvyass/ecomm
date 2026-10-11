@@ -659,6 +659,16 @@ model Refund {
   amount           Int
   status           RefundStatus @default(PENDING)
   reason           String?
+  /// Where the customer wants the money (bank transfer — UPI caps at ~₹1 lakh/day). Admin-only.
+  /// accountNumber is erased once the refund is sent; accountLast4 stays for the customer's record.
+  accountHolder    String?
+  accountNumber    String?
+  accountLast4     String?      @db.VarChar(4)
+  ifsc             String?      @db.VarChar(11)
+  bankName         String?
+  bankBranch       String?
+  bankDetailsAt    DateTime?
+  processedAt      DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

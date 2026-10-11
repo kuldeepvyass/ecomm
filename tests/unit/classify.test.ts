@@ -53,3 +53,13 @@ describe("dataset values", () => {
     expect(normalizeMovement("Swiss automatic")).toBe("AUTOMATIC");
   });
 });
+
+describe("refund bank details", () => {
+  it("validates IFSC and account numbers, normalising spacing and case", async () => {
+    const { bankDetailsSchema } = await import("@/lib/validation/bank");
+    const ok = bankDetailsSchema.parse({ accountHolder: "Asha Rao", accountNumber: "1234 5678 9012", ifsc: "hdfc0001234", bankName: "HDFC Bank" });
+    expect(ok).toMatchObject({ accountNumber: "123456789012", ifsc: "HDFC0001234" });
+    expect(bankDetailsSchema.safeParse({ accountHolder: "Asha", accountNumber: "1234", ifsc: "HDFC0001234", bankName: "HDFC" }).success).toBe(false);
+    expect(bankDetailsSchema.safeParse({ accountHolder: "Asha", accountNumber: "123456789", ifsc: "HDFC1001234", bankName: "HDFC" }).success).toBe(false);
+  });
+});
