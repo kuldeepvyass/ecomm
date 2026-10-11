@@ -100,3 +100,6 @@ _Last updated: 2026-10-07 (final local build)_
 - Removed the one-click "Test customer / Test admin" sign-in (code, seed, docs) and deleted both accounts locally with
   their 4 test orders (stock/sales/coupon use restored) and the history logged under them. The only admin is the
   address in `ADMIN_EMAILS` (set by the owner).
+- Test order/payment data cleared from the local DB: orders, payments, refunds, returns, coupon uses, carts and their
+  audit-log entries; order and GST invoice counters reset, so the first real order is MH-<year>-000001 and the first
+  invoice number is 1. Only the catalogue, collections, banners and store settings remain.
