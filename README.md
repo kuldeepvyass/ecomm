@@ -141,7 +141,7 @@ the previous release is restored automatically. The last 3 releases are kept.
 
 **On the server:** app in `/var/www/maison/current`, settings in `/var/www/maison/shared/.env` (regenerated from
 `.env.production` on every deploy), uploaded images in `/var/www/maison/shared/media`, database backups in
-`/var/www/maison/shared/backups` (14 days). The local test accounts and one-click sign-in never exist in production.
+`/var/www/maison/shared/backups` (14 days).
 
 ---
 

@@ -5,7 +5,6 @@ import sharp from "sharp";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { priceFor } from "../src/lib/pricing";
 import { strapTypeOf } from "../src/lib/catalog/classify";
-import { TEST_ACCOUNTS } from "../src/lib/dev/test-accounts";
 import { buildSearchText } from "../src/lib/text";
 import {
   BRANDS, COLLECTIONS, COLLECTION_IMAGES, HERO_IMAGE, HERO_IMAGE_MOBILE, HERO_VIDEO, PRODUCTS, REVIEWER_NAMES,
@@ -119,27 +118,6 @@ async function seedSettings() {
   for (const email of admins) {
     await db.user.upsert({ where: { email }, create: { email, role: "ADMIN", name: "Store Admin" }, update: { role: "ADMIN" } });
   }
-}
-
-/** Local test accounts (one-click sign-in on /sign-in in dev). Never seeded into production. */
-async function seedTestAccounts() {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_TEST_LOGIN !== "1") return;
-  for (const a of TEST_ACCOUNTS) {
-    const user = await db.user.upsert({
-      where: { email: a.email },
-      create: { email: a.email, name: a.name, role: a.role, emailVerified: new Date(), phone: a.role === "CUSTOMER" ? "9876543210" : null },
-      update: { role: a.role },
-    });
-    if (a.role === "CUSTOMER" && (await db.address.count({ where: { userId: user.id } })) === 0) {
-      await db.address.create({
-        data: {
-          userId: user.id, label: "Home", fullName: a.name, phone: "9876543210", line1: "12, Marine Drive", line2: "Flat 4B",
-          city: "Mumbai", state: "Maharashtra", pincode: "400020", isDefault: true,
-        },
-      });
-    }
-  }
-  console.log(`Test accounts ready: ${TEST_ACCOUNTS.map((a) => a.email).join(", ")}`);
 }
 
 async function seedDemoCatalog() {
@@ -283,7 +261,6 @@ async function seedDemoCatalog() {
 
 async function main() {
   await seedSettings();
-  await seedTestAccounts();
   if (process.env.SEED_DEMO !== "0") await seedDemoCatalog();
   console.log("Seed complete.");
 }

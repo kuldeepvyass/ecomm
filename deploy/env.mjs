@@ -12,7 +12,7 @@ const env = dotenv.parse(text);
 // Used only by deploy.sh — never written to the server's .env.
 const DEPLOY_ONLY = new Set(["DEPLOY_HOST", "DEPLOY_USER", "DEPLOY_SSH_PORT", "DEPLOY_SSH_KEY", "DEPLOY_PATH", "APP_PORT", "DOMAIN", "DOMAIN_WWW", "LETSENCRYPT_EMAIL"]);
 // Never allowed in production (would expose dev/test shortcuts).
-const FORBIDDEN = new Set(["E2E_TEST_MODE", "ALLOW_TEST_LOGIN", "NEXT_DIST_DIR"]);
+const FORBIDDEN = new Set(["E2E_TEST_MODE", "NEXT_DIST_DIR"]);
 
 const sq = (v) => `'${String(v).replace(/'/g, `'\\''`)}'`; // bash single-quote
 const dq = (v) => `"${String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`; // systemd/dotenv double-quote

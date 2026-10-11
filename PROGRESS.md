@@ -95,3 +95,8 @@ _Last updated: 2026-10-07 (final local build)_
   (Nginx direct + app route); `/api/health`; secret-protected `/api/internal/revalidate` (used by copy-catalog).
 - Rehearsed against a real Ubuntu 24.04 VM (Lima): fixed lock-file platform packages, Node version parity, backup
   cwd, copy-catalog reading the wrong DB URL, stale prerendered pages after copy, root-user sudo path.
+
+## Change: test accounts removed ✅ (2026-10-11)
+- Removed the one-click "Test customer / Test admin" sign-in (code, seed, docs) and deleted both accounts locally with
+  their 4 test orders (stock/sales/coupon use restored) and the history logged under them. The only admin is the
+  address in `ADMIN_EMAILS` (set by the owner).

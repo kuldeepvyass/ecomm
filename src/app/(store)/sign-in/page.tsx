@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Monogram } from "@/components/brand/logo";
-import { testLoginEnabled } from "@/lib/dev/test-accounts";
 import { SignInForm } from "./sign-in-form";
-import { TestAccounts } from "./test-accounts";
 
 export const metadata: Metadata = { title: "Sign in", robots: { index: false } };
 
@@ -31,7 +29,6 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
         </p>
         {error && <p role="alert" className="mt-6 border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
         <SignInForm callbackUrl={callbackUrl} googleEnabled={googleEnabled} />
-        {testLoginEnabled() && <TestAccounts callbackUrl={typeof sp.callbackUrl === "string" ? sp.callbackUrl : undefined} />}
       </div>
     </div>
   );

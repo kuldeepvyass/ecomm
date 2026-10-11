@@ -34,7 +34,7 @@ npx prisma migrate deploy
 
 if [ ! -f "$SHARED/.seeded" ]; then
   step "First deploy: store settings, shipping zones, coupons, collections, banners, admin accounts"
-  # No demo catalogue in production; NODE_ENV=production also skips the local test accounts.
+  # No demo catalogue in production.
   SEED_DEMO=0 NODE_ENV=production npx prisma db seed
   touch "$SHARED/.seeded"
 fi

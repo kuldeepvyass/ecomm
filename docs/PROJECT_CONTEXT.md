@@ -15,7 +15,8 @@ React Email · deployed to a Hostinger VPS with `./deploy.sh`.
   admin sends it and records the reference; full account number is erased after sending (last 4 kept).
 - **Catalogue under ₹1 lakh.** Product photos are **links** (hotlinked, never downloaded to the server).
 - **Never use or store the owner's personal email** anywhere (code, seed, env, DB, docs, commits). Admin for
-  local testing is `admin@maison.test`. Commit as the repo-local `kuldeepvyass@users.noreply.github.com`.
+  The only admin is the address the owner puts in `ADMIN_EMAILS`. Commit as the repo-local
+  `kuldeepvyass@users.noreply.github.com`.
 - **Don't run the Playwright E2E suite unless the owner asks** (they batch changes); run typecheck, lint and
   Vitest instead. When E2E is requested, run it last, before pushing.
 - Default theme is **light**. Default listing sort is **Recommended** (premium analog first).
@@ -42,14 +43,14 @@ DATABASE_URL="postgresql://postgres@localhost:5433/maison"
 DIRECT_URL="postgresql://postgres@localhost:5433/maison"
 AUTH_SECRET="<run: openssl rand -base64 32>"
 NEXT_PUBLIC_SITE_URL="http://localhost:3100"
-ADMIN_EMAILS="admin@maison.test"
+ADMIN_EMAILS="<the owner's admin address — ask them>"
 NEXT_PUBLIC_APK_URL="/downloads/maison-horlogere.apk"
 ```
 Leave `AUTH_URL` unset locally (Auth.js then uses the request host, so a phone on the LAN can sign in).
 Create `.env.test` (git-ignored) with the same two URLs pointing at `maison_test`. `.env.e2e` is committed.
 
 **Data — pick one:**
-- Restore the owner's snapshot (246 watches, collections, banners, hero video, test accounts):
+- Restore the owner's snapshot (246 watches, collections, banners, hero video, featured picks; no users or orders):
   `npx prisma migrate deploy && pg_restore --clean --if-exists --no-owner -d "postgresql://postgres@localhost:5433/maison" maison-dev-db-2026-10-11.dump`
   then `npx prisma migrate deploy` again (applies anything newer than the snapshot).
 - Or start fresh: `npx prisma migrate deploy && SEED_DEMO=0 npx prisma db seed`, then Admin → Import the owner's CSV
@@ -58,9 +59,9 @@ Create `.env.test` (git-ignored) with the same two URLs pointing at `maison_test
 Then `npm run dev -- -p 3100` → http://localhost:3100. LAN: `http://<mac-ip>:3100` (`ipconfig getifaddr en0`).
 Port 3000 is used by another project on the owner's machine — use 3100.
 
-**Test accounts (dev only, no OTP):** `/sign-in` → "Continue as Test customer" (`customer@maison.test`, has a
-Mumbai address) or "Continue as Test admin" (`admin@maison.test`). Disabled in production. Other sign-in emails
-are captured to `.dev-mail/` and viewable at `/dev/mail`.
+**Signing in locally:** there are no test accounts (removed at the owner's request). Sign in at `/sign-in` with any
+email — without SMTP configured, the one-time code email is captured to `.dev-mail/` and shown at `/dev/mail`.
+The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any other address.
 
 ## Commands
 | | |
@@ -76,7 +77,7 @@ are captured to `.dev-mail/` and viewable at `/dev/mail`.
   put the SQL in a new timestamped folder, then `DATABASE_URL=… npx prisma migrate deploy` for `maison` and
   `maison_test`, then `npx prisma generate` and **restart the dev server** (stale client → "Unknown argument").
   `Product.rankScore` is a Postgres GENERATED column (default sort) — never write it.
-- `prisma/seed.ts` + `seed-data.ts` — settings, zones, coupons, collections, banners, test accounts (dev), demo catalogue (`SEED_DEMO=0` skips).
+- `prisma/seed.ts` + `seed-data.ts` — settings, zones, coupons, collections, banners, admin users from `ADMIN_EMAILS`, demo catalogue (`SEED_DEMO=0` skips).
 - `src/server/orders/service.ts` — order placement, UTR submission/confirmation, expiry, cancellation, refunds (bank details).
 - `src/server/catalog/` — queries (filters, facets, sorting), admin writes, CSV/XLSX importer (`import.ts`).
 - `src/lib/catalog/classify.ts` — normalises dataset text (movement, watch type, strap type, water resistance…).
@@ -104,4 +105,4 @@ are captured to `.dev-mail/` and viewable at `/dev/mail`.
 ## Status
 v1.0.0 is deployment-ready; nothing deployed yet (the owner fills `.env.production` on deployment day).
 Pending from the owner: their APK (→ `public/downloads/maison-horlogere.apk`), store UPI ID, domain, mailbox.
-Remove the dev test accounts before/after launch when the owner asks (they're dev-only already).
+Test accounts and the one-click sign-in were removed (2026-10-11); don't reintroduce them unless asked.
