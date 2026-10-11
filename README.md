@@ -102,21 +102,46 @@ UPI is the only payment method — there is no Cash on Delivery or card option.
 
 ---
 
-## 5. Deploying to Vercel
+## 5. Deploying to a Hostinger VPS (`./deploy.sh`)
 
-1. Create a Neon (or Supabase) Postgres database; copy the pooled and direct connection strings.
-2. Push this folder to GitHub and import it in Vercel (framework: Next.js; build command `npm run build`).
-3. Add every variable from `.env.example` for *Production* (and *Preview* if you use it). After deploying, set your UPI ID in Admin → Settings.
-4. Run migrations and seed once against the production DB from your machine:
-   ```bash
-   DATABASE_URL="…direct url…" DIRECT_URL="…direct url…" npx prisma migrate deploy
-   DATABASE_URL="…" npx prisma db seed            # SEED_DEMO=0 to skip the sample watches
-   ```
-5. Deploy, sign in with an `ADMIN_EMAILS` address, and set store details in Admin → Settings.
+Everything runs on your own VPS: Node.js 24 app (systemd), Nginx with free HTTPS (Let's Encrypt), PostgreSQL 17
+with nightly backups, firewall, fail2ban and automatic security updates. Rehearsed end to end (first deploy, redeploy,
+rollback, backup, copy-catalog, root and sudo users) against a fresh Ubuntu 24.04 server.
 
-### Custom domain
-Vercel → Project → *Settings → Domains* → add `your-domain.com` (and `www`), then create the DNS records Vercel shows at your registrar.
-Update `AUTH_URL`, `NEXT_PUBLIC_SITE_URL`, the Google OAuth redirect URI, and verify the domain in Resend (for `EMAIL_FROM`). Redeploy.
+**Before deployment day**
+1. Hostinger VPS with **Ubuntu 22.04 or 24.04** (KVM 1 or bigger). Note its IP and root password (or add your SSH key in hPanel).
+2. Domain DNS → **A record `@`** and **A record `www`** pointing to the VPS IP.
+3. A mailbox for sending (hPanel → Emails), e.g. `orders@your-domain.com`.
+
+**Deploy**
+```bash
+cp .env.production.example .env.production   # then fill it in (comments explain every line)
+./deploy.sh
+```
+The first run sets up the server (~5–10 min); later runs only ship new code (~3–4 min). `AUTH_SECRET` and the
+database password are generated for you and saved back into `.env.production` — keep that file safe (it's git-ignored).
+
+How a deploy works: quick local checks (typecheck, lint, unit tests) → code uploaded to a new `releases/<timestamp>`
+folder → packages installed, migrations applied and the app built **on the server** while the current version keeps
+serving → the `current` link switches and the service restarts (≈1 s) → health check on `/api/health`; if it fails,
+the previous release is restored automatically. The last 3 releases are kept.
+
+| Command | What it does |
+|---|---|
+| `./deploy.sh` | Deploy (first run also sets up the server) |
+| `./deploy.sh setup` | Re-run server setup — e.g. after DNS starts pointing at the VPS, to switch on HTTPS |
+| `./deploy.sh copy-catalog` | Copy products, brands, collections and banners from your local database (only into an empty live store) |
+| `./deploy.sh rollback` | Switch back to the previous release |
+| `./deploy.sh status` / `logs` / `ssh` | Service status, live logs, a shell on the server |
+| `./deploy.sh backup` | Back up the live database now and download it to `./backups/` |
+| `--skip-checks` | Skip the local typecheck/lint/unit tests |
+
+**After the first deploy:** sign in with an `ADMIN_EMAILS` address → Admin → Settings: store details, GSTIN and your
+**UPI ID** (payments stay off until it's set) → add products (Import, or `./deploy.sh copy-catalog`).
+
+**On the server:** app in `/var/www/maison/current`, settings in `/var/www/maison/shared/.env` (regenerated from
+`.env.production` on every deploy), uploaded images in `/var/www/maison/shared/media`, database backups in
+`/var/www/maison/shared/backups` (14 days). The local test accounts and one-click sign-in never exist in production.
 
 ---
 
@@ -130,5 +155,5 @@ npm run typecheck && npm run lint
 ```
 
 ## 7. Monitoring
-Server errors are logged as structured JSON (visible in Vercel → Logs) via `src/instrumentation.ts`.
+Server errors are logged as structured JSON (`./deploy.sh logs`, i.e. `journalctl -u maison`) via `src/instrumentation.ts`. Uptime monitors can poll `https://your-domain/api/health`.
 To add Sentry: `npx @sentry/wizard@latest -i nextjs`, set `SENTRY_DSN`, and call `Sentry.captureRequestError` inside `onRequestError`.

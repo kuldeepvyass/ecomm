@@ -61,7 +61,7 @@ export async function submitPaymentUtr(input: z.input<typeof utrSchema>): Promis
     const user = await assertUser();
     await enforceRateLimit("utr", user.id, 10, 3600);
     const d = utrSchema.parse(input);
-    if (d.screenshot && !(d.screenshot.url.startsWith("/uploads/payments/") || d.screenshot.url.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`))) {
+    if (d.screenshot && !(d.screenshot.url.startsWith("/media/payments/") || d.screenshot.url.startsWith("/uploads/payments/") || d.screenshot.url.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`))) {
       throw new CheckoutError("Invalid screenshot.");
     }
     await submitUtr(user.id, d.orderId, {

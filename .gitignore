@@ -34,6 +34,7 @@ yarn-error.log*
 .env*
 !.env.example
 !.env.e2e
+!.env.production.example
 
 # vercel
 .vercel
@@ -56,3 +57,6 @@ next-env.d.ts
 /.next-e2e
 /.next-build
 /tests/e2e/.auth
+/.media
+# deploy
+/backups

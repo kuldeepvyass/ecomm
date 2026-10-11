@@ -8,6 +8,15 @@ import sharp from "sharp";
 export type UploadedImage = { url: string; publicId: string; width: number; height: number; blurDataUrl: string };
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Locally stored images (VPS / dev). UPLOAD_DIR is set in production to a folder outside the release
+ * (e.g. /var/www/maison/shared/media) so deploys never touch it; Nginx serves it at /media/.
+ */
+export function mediaDir() {
+  return process.env.UPLOAD_DIR || path.join(process.cwd(), ".media");
+}
+export const MEDIA_PREFIX = "/media/";
 const ALLOWED = new Set(["jpeg", "png", "webp", "avif", "heif"]);
 
 function cloudinaryReady() {
@@ -23,7 +32,7 @@ function cloudinaryReady() {
 
 /**
  * Validates by decoding (not by trusting the file extension/MIME), normalises orientation,
- * strips metadata, caps size at 2400px, then stores on Cloudinary — or public/uploads on localhost.
+ * strips metadata, caps size at 2400px, then stores on Cloudinary (if configured) or on this server's disk.
  */
 export async function storeImage(input: Buffer, folder: "products" | "reviews" | "banners" | "brand" | "payments"): Promise<UploadedImage> {
   if (input.byteLength > MAX_UPLOAD_BYTES) throw new Error("Image is larger than 10 MB.");
@@ -42,21 +51,23 @@ export async function storeImage(input: Buffer, folder: "products" | "reviews" |
     return { url: res.secure_url, publicId: res.public_id, width: res.width, height: res.height, blurDataUrl };
   }
 
-  if (process.env.NODE_ENV === "production" && process.env.E2E_TEST_MODE !== "1") {
-    throw new Error("Image storage isn't configured. Add Cloudinary credentials.");
+  if (process.env.NODE_ENV === "production" && !process.env.UPLOAD_DIR && process.env.E2E_TEST_MODE !== "1") {
+    throw new Error("Image storage isn't configured. Set UPLOAD_DIR (server disk) or Cloudinary credentials.");
   }
   const name = `${randomUUID()}.webp`;
-  const dir = path.join(process.cwd(), "public", "uploads", folder);
+  const dir = path.join(mediaDir(), folder);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, name), processed.data);
-  return { url: `/uploads/${folder}/${name}`, publicId: `local:${folder}/${name}`, width: processed.info.width, height: processed.info.height, blurDataUrl };
+  return { url: `${MEDIA_PREFIX}${folder}/${name}`, publicId: `local:${folder}/${name}`, width: processed.info.width, height: processed.info.height, blurDataUrl };
 }
 
 export async function deleteStoredImage(publicId: string | null | undefined) {
   if (!publicId) return;
   try {
     if (publicId.startsWith("local:")) {
-      await unlink(path.join(process.cwd(), "public", "uploads", publicId.slice(6)));
+      const rel = publicId.slice(6);
+      // Current location, then the pre-/media location used by early local builds.
+      await unlink(path.join(mediaDir(), rel)).catch(() => unlink(path.join(process.cwd(), "public", "uploads", rel)));
     } else if (cloudinaryReady()) {
       await cloudinary.uploader.destroy(publicId);
     }

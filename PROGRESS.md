@@ -83,3 +83,15 @@ _Last updated: 2026-10-07 (final local build)_
 - Admin → Payments → Refunds to send: bank details with copy buttons + payer UPI ID; "Mark refund sent" with reference → order REFUNDED, customer emailed, full account number erased (last 4 kept).
 - Customer order page: refund panel — needs bank details / being processed (••••1234) / refund successful (amount, bank, date, reference).
 - Vitest 58/58 (4 new refund integration tests + bank validation), Playwright 96/96.
+
+## v1 — deployment ready ✅ (2026-10-11)
+- `./deploy.sh` → Hostinger VPS (Ubuntu 22.04/24.04): Node 24 + systemd, Nginx + Let's Encrypt (webroot, auto-renew),
+  PostgreSQL 17 (local, auto-created) with nightly backups (14 days), ufw (auto-detects the SSH port), fail2ban,
+  unattended upgrades, 2 GB swap. Releases in `releases/<ts>` built on the server, atomic `current` switch,
+  health check (`/api/health`) with automatic rollback, keeps 3. Commands: setup, copy-catalog, rollback, status,
+  logs, backup, ssh. Settings in `.env.production` (template `.env.production.example`); AUTH_SECRET and DB password
+  generated on first deploy.
+- App changes for VPS: SMTP email (Hostinger) alongside Resend; uploads on disk in UPLOAD_DIR served at `/media/`
+  (Nginx direct + app route); `/api/health`; secret-protected `/api/internal/revalidate` (used by copy-catalog).
+- Rehearsed against a real Ubuntu 24.04 VM (Lima): fixed lock-file platform packages, Node version parity, backup
+  cwd, copy-catalog reading the wrong DB URL, stale prerendered pages after copy, root-user sudo path.

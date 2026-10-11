@@ -50,7 +50,7 @@ export async function submitReview(input: z.input<typeof reviewSchema>): Promise
     if (elig.alreadyReviewed) throw new UserFacingError("You've already reviewed this watch.");
     if (!elig.orderItemId) throw new UserFacingError("Only customers who received this watch can review it.");
     for (const img of data.images) {
-      const okUrl = img.url.startsWith("/uploads/reviews/") || img.url.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`);
+      const okUrl = img.url.startsWith("/media/reviews/") || img.url.startsWith("/uploads/reviews/") || img.url.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`);
       if (!okUrl) throw new UserFacingError("Invalid image.");
     }
     const dbUser = await db.user.findUnique({ where: { id: user.id }, select: { name: true, email: true } });
