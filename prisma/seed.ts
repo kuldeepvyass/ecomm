@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { priceFor } from "../src/lib/pricing";
 import { strapTypeOf } from "../src/lib/catalog/classify";
+import { loadCatalog } from "./catalog-snapshot";
 import { buildSearchText } from "../src/lib/text";
 import {
   BRANDS, COLLECTIONS, COLLECTION_IMAGES, HERO_IMAGE, HERO_IMAGE_MOBILE, HERO_VIDEO, PRODUCTS, REVIEWER_NAMES,
@@ -260,6 +261,12 @@ async function seedDemoCatalog() {
 }
 
 async function main() {
+  // Real store (SEED_DEMO=0): load the catalogue snapshot from git into an empty database first,
+  // so the default collections/banners below don't duplicate the store's own.
+  if (process.env.SEED_DEMO === "0") {
+    const loaded = await loadCatalog(db);
+    if (loaded) console.log(`Catalogue loaded from snapshot: ${loaded.products} products (exported ${loaded.exportedAt.slice(0, 10)}).`);
+  }
   await seedSettings();
   if (process.env.SEED_DEMO !== "0") await seedDemoCatalog();
   console.log("Seed complete.");

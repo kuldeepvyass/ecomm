@@ -17,6 +17,10 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
+    "catalog:export": "tsx scripts/export-catalog.ts",
+    "setup:local": "bash scripts/setup-local.sh",
+    "db:start": "bash scripts/db.sh start",
+    "db:stop": "bash scripts/db.sh stop",
     "postinstall": "prisma generate",
     "lighthouse": "tsx tests/e2e/prepare-db.ts && lhci autorun --config=lighthouserc.cjs"
   },
