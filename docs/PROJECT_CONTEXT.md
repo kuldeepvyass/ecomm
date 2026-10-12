@@ -1,6 +1,6 @@
 # Maison Horlogère — project context for Claude
 
-Read this before changing anything. It records the owner's decisions, how the code is organised and
+Read this before changing anything. (Claude loads it via CLAUDE.md; GitHub Copilot via .github/copilot-instructions.md.) It records the owner's decisions, how the code is organised and
 the traps already found. `PROGRESS.md` is the changelog; `README.md` is the operator guide.
 
 ## What this is
