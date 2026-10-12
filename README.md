@@ -9,21 +9,16 @@ See `PROGRESS.md` for what's built and the latest test results, and `design-syst
 
 ## 1. Run it locally
 
-Requirements: Node 20.9+ (24 recommended), PostgreSQL 15+.
+On a Mac, one command sets everything up (Node 24 + PostgreSQL 17 via Homebrew, local databases, `.env`,
+packages, migrations and the store's 246-watch catalogue from `prisma/data/catalog.json`):
 
 ```bash
-npm install
-cp .env.example .env        # fill DATABASE_URL, DIRECT_URL, AUTH_SECRET, AUTH_URL, NEXT_PUBLIC_SITE_URL, ADMIN_EMAILS
-npm run db:deploy           # apply migrations
-npm run db:seed             # settings, shipping zones, coupons, collections + 20 sample watches
-npm run dev -- -p 3100      # http://localhost:3100 (on your phone: http://<your-mac-ip>:3100, same Wi-Fi)
+./scripts/setup-local.sh you@example.com   # your admin email (or leave it out to be asked)
+npm run dev -- -p 3100                      # http://localhost:3100 (phone on the same Wi-Fi: http://<your-mac-ip>:3100)
 ```
 
-On this machine Postgres runs from the project folder on port 5433:
-
-```bash
-LC_ALL=en_US.UTF-8 /opt/homebrew/opt/postgresql@17/bin/pg_ctl -D .pgdata -l .pgdata/server.log -o "-p 5433 -k /tmp" start
-```
+After restarting the Mac: `npm run db:start`. Sign in with your admin email at `/sign-in` — locally the 6-digit code
+appears at `/dev/mail`.
 
 **Without third-party keys the app still works end-to-end in development:**
 
@@ -136,8 +131,9 @@ the previous release is restored automatically. The last 3 releases are kept.
 | `./deploy.sh backup` | Back up the live database now and download it to `./backups/` |
 | `--skip-checks` | Skip the local typecheck/lint/unit tests |
 
-**After the first deploy:** sign in with an `ADMIN_EMAILS` address → Admin → Settings: store details, GSTIN and your
-**UPI ID** (payments stay off until it's set) → add products (Import, or `./deploy.sh copy-catalog`).
+**After the first deploy:** the store already has the catalogue from `prisma/data/catalog.json` (refresh it with
+`npm run catalog:export` before deploying if you changed products locally). Sign in with an `ADMIN_EMAILS` address →
+Admin → Settings: store details, GSTIN and your **UPI ID** (payments stay off until it's set).
 
 **On the server:** app in `/var/www/maison/current`, settings in `/var/www/maison/shared/.env` (regenerated from
 `.env.production` on every deploy), uploaded images in `/var/www/maison/shared/media`, database backups in

@@ -103,3 +103,11 @@ _Last updated: 2026-10-07 (final local build)_
 - Test order/payment data cleared from the local DB: orders, payments, refunds, returns, coupon uses, carts and their
   audit-log entries; order and GST invoice counters reset, so the first real order is MH-<year>-000001 and the first
   invoice number is 1. Only the catalogue, collections, banners and store settings remain.
+
+## Change: everything needed is in GitHub ✅ (2026-10-12)
+- `prisma/data/catalog.json` — the real catalogue (246 watches, brands, collections, banners, featured picks; no
+  users/orders/settings/cost prices). Loaded into an empty DB by the seed with SEED_DEMO=0: local setup and the first
+  production deploy get the real store. `npm run catalog:export` refreshes it.
+- `scripts/setup-local.sh` (`npm run setup:local`) — a blank Mac to the running store in one command; `npm run db:start/db:stop`.
+- Verified on a fresh clone (no .env, no packages, no DB): setup → 246 watches, pages identical to the original,
+  typecheck + Vitest 58/58.

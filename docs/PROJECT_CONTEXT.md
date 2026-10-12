@@ -23,41 +23,25 @@ React Email · deployed to a Hostinger VPS with `./deploy.sh`.
 - The owner tests on an **Android phone (Galaxy S24 Ultra, 384 px wide)** — always check 384 px for overflow.
 - Explain results in plain language; the owner is not a developer-tooling expert.
 
-## Local setup (macOS)
+## Local setup (macOS) — one command
 ```bash
-brew install node@24 postgresql@17          # Node 24 matches production
 git clone https://github.com/kuldeepvyass/ecomm.git luxury-watch-store && cd luxury-watch-store
-npm install
-
-# Postgres on port 5433 with the data folder inside the project (git-ignored)
-export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-LC_ALL=en_US.UTF-8 initdb -D .pgdata -U postgres --auth=trust
-LC_ALL=en_US.UTF-8 pg_ctl -D .pgdata -l .pgdata/server.log -o "-p 5433 -k /tmp" start
-createdb -h /tmp -p 5433 -U postgres maison
-createdb -h /tmp -p 5433 -U postgres maison_test
-createdb -h /tmp -p 5433 -U postgres maison_e2e
+./scripts/setup-local.sh owner-admin@example.com     # ask the owner for their admin email
+npm run dev -- -p 3100                                # http://localhost:3100 · LAN: http://<mac-ip>:3100
 ```
-Create `.env` (git-ignored):
-```
-DATABASE_URL="postgresql://postgres@localhost:5433/maison"
-DIRECT_URL="postgresql://postgres@localhost:5433/maison"
-AUTH_SECRET="<run: openssl rand -base64 32>"
-NEXT_PUBLIC_SITE_URL="http://localhost:3100"
-ADMIN_EMAILS="<the owner's admin address — ask them>"
-NEXT_PUBLIC_APK_URL="/downloads/maison-horlogere.apk"
-```
+`setup-local.sh` (also `npm run setup:local`) installs Node 24 and PostgreSQL 17 via Homebrew if missing, creates
+`./.pgdata` on **port 5433** with the databases `maison` (dev), `maison_test` (Vitest) and `maison_e2e` (Playwright),
+writes `.env` (generated `AUTH_SECRET`, `ADMIN_EMAILS`) and `.env.test`, installs packages, applies migrations and
+loads the store's catalogue. It's safe to re-run and never overwrites an existing `.env`. After a reboot:
+`npm run db:start`. Port 3000 is used by another project on the owner's machine — use 3100.
 Leave `AUTH_URL` unset locally (Auth.js then uses the request host, so a phone on the LAN can sign in).
-Create `.env.test` (git-ignored) with the same two URLs pointing at `maison_test`. `.env.e2e` is committed.
 
-**Data — pick one:**
-- Restore the owner's snapshot (246 watches, collections, banners, hero video, featured picks; no users or orders):
-  `npx prisma migrate deploy && pg_restore --clean --if-exists --no-owner -d "postgresql://postgres@localhost:5433/maison" maison-dev-db-2026-10-11.dump`
-  then `npx prisma migrate deploy` again (applies anything newer than the snapshot).
-- Or start fresh: `npx prisma migrate deploy && SEED_DEMO=0 npx prisma db seed`, then Admin → Import the owner's CSV
-  (`top246_watches_final.csv`, kept outside the repo).
-
-Then `npm run dev -- -p 3100` → http://localhost:3100. LAN: `http://<mac-ip>:3100` (`ipconfig getifaddr en0`).
-Port 3000 is used by another project on the owner's machine — use 3100.
+**The catalogue lives in git:** `prisma/data/catalog.json` holds the real store — 246 watches, brands, collections
+(Chronograph/Automatic/Swiss Made/Smartwatches + hidden Dress/Dive/Limited), homepage banners (hero video, Tissot
+"For Him/For Her" tiles), featured picks. No users, orders, settings or cost prices (the repo is public).
+`SEED_DEMO=0 npx prisma db seed` loads it into an **empty** database — `setup-local.sh` and the **first production
+deploy** both do this automatically. After the owner changes the catalogue locally, run `npm run catalog:export`
+and commit the file. (`SEED_DEMO` unset loads the 20 fictional demo watches instead — used only by the E2E suite.)
 
 **Signing in locally:** there are no test accounts (removed at the owner's request). Sign in at `/sign-in` with any
 email — without SMTP configured, the one-time code email is captured to `.dev-mail/` and shown at `/dev/mail`.
@@ -68,6 +52,8 @@ The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any oth
 |---|---|
 | `npx tsc --noEmit` · `npm run lint` | typecheck · lint (0 errors expected; ~9 known warnings) |
 | `npx vitest run` | unit + integration (integration uses `maison_test`) — 58 tests |
+| `npm run catalog:export` | refresh `prisma/data/catalog.json` from the local DB (then commit) |
+| `npm run db:start` / `db:stop` | local PostgreSQL |
 | `npm run test:e2e` | Playwright, 96 tests (iPhone 14, Pixel 7, desktop + axe); builds into `.next-e2e`, DB `maison_e2e`, port 3200 — only when asked |
 | `./deploy.sh [setup\|copy-catalog\|rollback\|status\|logs\|backup\|ssh]` | production (see README §5) |
 
@@ -103,6 +89,8 @@ The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any oth
 - The owner's personal email must never appear — grep before committing.
 
 ## Status
-v1.0.0 is deployment-ready; nothing deployed yet (the owner fills `.env.production` on deployment day).
+v1.0.0 is deployment-ready; nothing deployed yet. On deployment day the owner gives you the VPS IP + SSH access,
+domain, mailbox (SMTP) details and admin email: `cp .env.production.example .env.production`, fill it in, run
+`./deploy.sh` (README §5). The first deploy loads the catalogue from `prisma/data/catalog.json` automatically.
 Pending from the owner: their APK (→ `public/downloads/maison-horlogere.apk`), store UPI ID, domain, mailbox.
 Test accounts and the one-click sign-in were removed (2026-10-11); don't reintroduce them unless asked.
