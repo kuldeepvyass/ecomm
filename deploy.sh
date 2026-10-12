@@ -14,8 +14,8 @@
 #
 #   Options:  --skip-checks     Skip the local typecheck/lint/unit tests before deploying
 #
-# Settings come from .env.production (copy .env.production.example). Written for the bash 3.2
-# that ships with macOS — no extra installs needed on your Mac besides this project's node_modules.
+# Settings come from .env.production (copy .env.production.example). Runs on macOS (its bash 3.2) and on
+# Linux — including Windows via WSL2/Ubuntu. Needs this project's node_modules, ssh, rsync, curl, openssl.
 set -Eeuo pipefail
 
 cd "$(dirname "$0")"
@@ -46,7 +46,10 @@ done
 
 # ── settings ─────────────────────────────────────────────────────────────────
 [ -f "$ENV_FILE" ] || die "Missing .env.production — run:  cp .env.production.example .env.production  and fill it in."
-[ -d node_modules ] || die "Run 'npm install' once on this Mac first (the deploy helper uses it)."
+[ -d node_modules ] || die "Run ./scripts/setup-local.sh (or npm install) once on this computer first — the deploy helper uses it."
+for t in ssh rsync curl openssl perl; do
+  command -v "$t" >/dev/null || die "'$t' is missing on this computer. Ubuntu/WSL: sudo apt-get install -y openssh-client rsync curl openssl perl"
+done
 
 load_env() { eval "$(node deploy/env.mjs shell "$ENV_FILE")"; }
 set_env() { node deploy/env.mjs set "$ENV_FILE" "$1" "$2"; }
@@ -154,7 +157,7 @@ switch_to() { # atomically point `current` at a release and restart
 
 local_checks() {
   [ "$SKIP_CHECKS" = "1" ] && { warn "local checks skipped"; return; }
-  step "Checking the code on this Mac (typecheck, lint, unit tests)"
+  step "Checking the code on this computer (typecheck, lint, unit tests)"
   npx tsc --noEmit || die "TypeScript errors — fix them or use --skip-checks."
   npx eslint --quiet . || die "Lint errors — fix them or use --skip-checks."
   npx vitest run tests/unit --reporter=dot >/dev/null || die "Unit tests failed — run 'npx vitest run tests/unit' to see why."
@@ -216,7 +219,7 @@ deploy() {
   if remote "test -f $DEPLOY_PATH/.ssl-pending"; then scheme=http; fi
   local code
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$scheme://$DOMAIN/api/health" || true)"
-  if [ "$code" = "200" ]; then ok "$scheme://$DOMAIN is up"; else warn "$scheme://$DOMAIN answered $code from this Mac (DNS may still be propagating)"; fi
+  if [ "$code" = "200" ]; then ok "$scheme://$DOMAIN is up"; else warn "$scheme://$DOMAIN answered $code from this computer (DNS may still be propagating)"; fi
 
   printf '\n'; bold "✓ Deployed $release → $scheme://$DOMAIN"
   [ "$scheme" = "http" ] && warn "HTTPS is pending: point $DOMAIN's A record at $SERVER_IP, then run ./deploy.sh setup"
@@ -236,10 +239,11 @@ copy_catalog() {
   connect
   # pg_dump must be at least as new as the database (17); an older one in PATH would refuse.
   local PG_DUMP=""
-  for c in /opt/homebrew/opt/postgresql@18/bin/pg_dump /opt/homebrew/opt/postgresql@17/bin/pg_dump /usr/local/opt/postgresql@17/bin/pg_dump "$(command -v pg_dump || true)"; do
+  for c in /opt/homebrew/opt/postgresql@18/bin/pg_dump /opt/homebrew/opt/postgresql@17/bin/pg_dump /usr/local/opt/postgresql@17/bin/pg_dump \
+           /usr/lib/postgresql/18/bin/pg_dump /usr/lib/postgresql/17/bin/pg_dump "$(command -v pg_dump || true)"; do
     if [ -x "$c" ] && [ "$("$c" --version | sed -E 's/.* ([0-9]+)\..*/\1/')" -ge 17 ]; then PG_DUMP="$c"; break; fi
   done
-  [ -n "$PG_DUMP" ] || die "pg_dump 17+ not found on this Mac (brew install postgresql@17)."
+  [ -n "$PG_DUMP" ] || die "pg_dump 17+ not found on this computer (run ./scripts/setup-local.sh)."
   local LOCAL_URL; LOCAL_URL="$(node -e 'process.stdout.write(require("dotenv").parse(require("fs").readFileSync(".env")).DATABASE_URL || "")')"  # parse the file itself: the environment already holds the production URL
   [ -n "$LOCAL_URL" ] || die "No DATABASE_URL in your local .env."
 
