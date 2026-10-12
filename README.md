@@ -17,8 +17,37 @@ packages, migrations and the store's 246-watch catalogue from `prisma/data/catal
 npm run dev -- -p 3100                      # http://localhost:3100 (phone on the same Wi-Fi: http://<your-mac-ip>:3100)
 ```
 
-After restarting the Mac: `npm run db:start`. Sign in with your admin email at `/sign-in` — locally the 6-digit code
+After restarting the computer: `npm run db:start`. Sign in with your admin email at `/sign-in` — locally the 6-digit code
 appears at `/dev/mail`.
+
+### On Windows (WSL2)
+
+The project runs inside **WSL2 with Ubuntu** — the same Linux the live server uses, so `setup-local.sh` and
+`deploy.sh` work unchanged. Don't run it from a Windows folder (`C:\…` / `/mnt/c/…`); keep it inside Ubuntu.
+
+1. **Install WSL** — PowerShell *as Administrator*: `wsl --install -d Ubuntu-24.04`, restart, then open **Ubuntu**
+   from the Start menu and create your Linux username and password.
+2. **In the Ubuntu terminal:**
+   ```bash
+   sudo apt-get update && sudo apt-get install -y git gh rsync
+   gh auth login                                   # GitHub sign-in (choose HTTPS)
+   cd ~ && git clone https://github.com/kuldeepvyass/ecomm.git luxury-watch-store && cd luxury-watch-store
+   ./scripts/setup-local.sh you@example.com        # asks for your Linux password to install Node 24 + PostgreSQL 17
+   npm run dev -- -p 3100                          # open http://localhost:3100 in your Windows browser
+   ```
+3. **Editor:** VS Code on Windows + the **WSL** extension → in the Ubuntu terminal run `code .` (VS Code, Copilot and
+   its terminal then work inside Ubuntu). Claude Code: install and run it inside the Ubuntu terminal.
+4. **Testing on your phone** (optional): create `C:\Users\<you>\.wslconfig` containing
+   ```
+   [wsl2]
+   networkingMode=mirrored
+   ```
+   then in PowerShell run `wsl --shutdown`, reopen Ubuntu and start the site again. Use your PC's Wi-Fi IP
+   (`ipconfig` in PowerShell → "IPv4 Address") with `:3100`. If the phone still can't connect, allow it once in
+   PowerShell *as Administrator*:
+   `Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow`
+5. **Deploying** works the same: `./deploy.sh` from the Ubuntu terminal (README §5).
+6. Playwright E2E (only when needed): first run `npx playwright install --with-deps chromium webkit`.
 
 **Without third-party keys the app still works end-to-end in development:**
 

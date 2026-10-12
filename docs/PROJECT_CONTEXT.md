@@ -23,7 +23,7 @@ React Email · deployed to a Hostinger VPS with `./deploy.sh`.
 - The owner tests on an **Android phone (Galaxy S24 Ultra, 384 px wide)** — always check 384 px for overflow.
 - Explain results in plain language; the owner is not a developer-tooling expert.
 
-## Local setup (macOS) — one command
+## Local setup — one command (macOS, or Windows via WSL2/Ubuntu)
 ```bash
 git clone https://github.com/kuldeepvyass/ecomm.git luxury-watch-store && cd luxury-watch-store
 ./scripts/setup-local.sh owner-admin@example.com     # ask the owner for their admin email
@@ -34,6 +34,10 @@ npm run dev -- -p 3100                                # http://localhost:3100 ·
 writes `.env` (generated `AUTH_SECRET`, `ADMIN_EMAILS`) and `.env.test`, installs packages, applies migrations and
 loads the store's catalogue. It's safe to re-run and never overwrites an existing `.env`. After a reboot:
 `npm run db:start`. Port 3000 is used by another project on the owner's machine — use 3100.
+**Windows:** the owner's other PC is Windows — everything runs inside **WSL2 Ubuntu** (README §1 "On Windows"): clone
+into `~` (never `/mnt/c`; the script refuses), install with apt (the script does it, asking for the Linux password),
+open the site in the Windows browser at localhost. Phone testing needs WSL "mirrored" networking (README).
+`deploy.sh` runs unchanged from WSL. Verified on a fresh Ubuntu 24.04: setup, typecheck/lint/Vitest, site, full deploy.
 Leave `AUTH_URL` unset locally (Auth.js then uses the request host, so a phone on the LAN can sign in).
 
 **The catalogue lives in git:** `prisma/data/catalog.json` holds the real store — 246 watches, brands, collections
@@ -83,7 +87,9 @@ The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any oth
 - React lint forbids `setState` in effects → use `useSyncExternalStore` for browser-only values.
 - Forms that update several fields asynchronously: use functional `setState` updaters.
 - `dotenv` v17 prints to stdout unless `quiet: true`; it never overrides existing env vars.
-- macOS `sed` doesn't understand `\t` (use perl); macOS bash is 3.2 (no associative arrays).
+- macOS `sed` doesn't understand `\t` (use perl); macOS bash is 3.2 (no associative arrays). Scripts must work on
+  both macOS and Ubuntu/WSL (`scripts/lib-platform.sh`); keep LF line endings (`.gitattributes`).
+- `tsc` alone fails on a fresh clone (Next's `PageProps`/`RouteContext` types are generated) — use `npm run typecheck`.
 - Deploy scripts: after editing `deploy/` or `deploy.sh`, run shellcheck **and** rehearse on a throwaway Ubuntu
   VM (`brew install lima && limactl start --name=vps template:ubuntu-24.04`), as root and as a sudo user.
 - The owner's personal email must never appear — grep before committing.

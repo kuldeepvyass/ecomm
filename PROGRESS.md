@@ -111,3 +111,11 @@ _Last updated: 2026-10-07 (final local build)_
 - `scripts/setup-local.sh` (`npm run setup:local`) — a blank Mac to the running store in one command; `npm run db:start/db:stop`.
 - Verified on a fresh clone (no .env, no packages, no DB): setup → 246 watches, pages identical to the original,
   typecheck + Vitest 58/58.
+
+## Change: Windows support (WSL2) ✅ (2026-10-12)
+- `scripts/lib-platform.sh`: setup and `db:start` work on macOS (Homebrew) and Ubuntu/WSL (apt); refuses `/mnt/c`.
+  `deploy.sh` runs from Linux too (checks ssh/rsync/curl/openssl/perl). `.gitattributes` keeps LF endings.
+- Fixed: typecheck failed on fresh clones (Next route types not generated yet) — setup and deploy.sh now run
+  `next typegen` first; docs use `npm run typecheck`.
+- Verified on a fresh Ubuntu 24.04 (as on WSL): clone → setup (Node 24 + PostgreSQL 17 via apt, 246 watches) →
+  typecheck, lint, Vitest 58/58 → site pages → full `./deploy.sh` as root (catalogue + admin created on first deploy).
