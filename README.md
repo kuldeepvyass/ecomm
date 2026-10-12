@@ -170,6 +170,29 @@ Admin → Settings: store details, GSTIN and your **UPI ID** (payments stay off 
 
 ---
 
+### Deploying from Windows (or any computer) — only SSH needed
+
+No Linux, WSL, Node or local copy required: the server pulls the code from GitHub and builds itself
+(`deploy/vps.sh`). Windows 10/11 already includes `ssh`. In **PowerShell**:
+
+```powershell
+ssh root@<VPS-IP>          # Hostinger root password (or add your SSH key in hPanel → VPS → Settings → SSH keys)
+```
+Then, on the server (first deploy — fill in your values):
+```bash
+curl -fsSL https://raw.githubusercontent.com/kuldeepvyass/ecomm/main/deploy/vps.sh -o /root/maison-vps.sh
+DOMAIN=example.com LETSENCRYPT_EMAIL=you@example.com ADMIN_EMAILS=you@example.com \
+SMTP_USER=orders@example.com SMTP_PASSWORD='your-mailbox-password' \
+EMAIL_FROM='Maison Horlogère <orders@example.com>' bash /root/maison-vps.sh
+```
+Every later deploy (latest code on GitHub `main`, same settings): `bash /root/maison-vps.sh`.
+Other commands: `status`, `rollback`, `backup`, `setup` (e.g. to switch on HTTPS once DNS points at the server),
+`settings` (shows saved settings, secrets hidden). To change a setting, pass it again:
+`ADMIN_EMAILS=new@example.com bash /root/maison-vps.sh`. Settings live on the server in `/etc/maison/settings.env`.
+Use **either** this or `./deploy.sh` for a given server, not both (each keeps its own copy of the settings).
+
+---
+
 ## 6. Tests
 
 ```bash

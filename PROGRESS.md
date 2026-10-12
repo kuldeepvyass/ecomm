@@ -119,3 +119,9 @@ _Last updated: 2026-10-07 (final local build)_
   `next typegen` first; docs use `npm run typecheck`.
 - Verified on a fresh Ubuntu 24.04 (as on WSL): clone → setup (Node 24 + PostgreSQL 17 via apt, 246 watches) →
   typecheck, lint, Vitest 58/58 → site pages → full `./deploy.sh` as root (catalogue + admin created on first deploy).
+
+## Change: deploy from Windows with only SSH ✅ (2026-10-12)
+- `deploy/vps.sh` runs on the VPS: pulls `main` from GitHub, sets the server up (first run), builds, switches with health
+  check + rollback. Settings saved in `/etc/maison/settings.env` (secrets generated). Commands: status, rollback,
+  backup, setup, settings. Verified on a fresh Ubuntu 24.04 using only SSH commands: 246 watches, admin created,
+  redeploy without re-entering settings, rollback, missing-settings guard.

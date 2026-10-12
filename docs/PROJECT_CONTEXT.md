@@ -75,7 +75,8 @@ The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any oth
 - `src/components/listing/filters.tsx` — price slider + collapsible filter sections.
 - `src/lib/email/send.ts` — SMTP (Hostinger) → Resend → dev mailbox.
 - `src/server/uploads.ts` — images on disk in `UPLOAD_DIR` (dev `.media/`), served at `/media/` (Nginx in prod).
-- `deploy.sh`, `deploy/` — VPS deployment (bash 3.2-compatible for macOS).
+- `deploy.sh` (from Mac/Linux, uploads the working tree) and `deploy/vps.sh` (runs ON the server, pulls from GitHub —
+  the Windows path); both use `deploy/server-setup.sh` + `deploy/release.sh`.
 
 ## Traps already hit (don't repeat)
 - **Next.js 16 is not the Next you know** — read `node_modules/next/dist/docs/` before using an API. `proxy.ts`
@@ -95,7 +96,10 @@ The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any oth
 - The owner's personal email must never appear — grep before committing.
 
 ## Status
-v1.0.0 is deployment-ready; nothing deployed yet. On deployment day the owner gives you the VPS IP + SSH access,
+v1.0.0 is deployment-ready; nothing deployed yet. **The owner deploys from a Windows PC with no local setup**: use
+`deploy/vps.sh` over SSH (README §5 "Deploying from Windows") — ask the owner for the VPS IP, root password or SSH
+key, domain, mailbox (SMTP) address + password, Let's Encrypt email and admin email, then run it on the server.
+Don't make them install WSL/Node or run the site locally unless they ask. (`./deploy.sh` is the Mac/Linux path.) On deployment day the owner gives you the VPS IP + SSH access,
 domain, mailbox (SMTP) details and admin email: `cp .env.production.example .env.production`, fill it in, run
 `./deploy.sh` (README §5). The first deploy loads the catalogue from `prisma/data/catalog.json` automatically.
 Pending from the owner: their APK (→ `public/downloads/maison-horlogere.apk`), store UPI ID, domain, mailbox.

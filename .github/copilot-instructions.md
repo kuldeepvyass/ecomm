@@ -18,5 +18,6 @@ Key rules (full list in docs/PROJECT_CONTEXT.md):
   (use `grid-cols-1` / `minmax(0,1fr)` and `min-w-0` on grids).
 - Check work with `npm run typecheck`, `npm run lint`, `npx vitest run`. Run `npm run test:e2e` only when asked.
 - Commit (as the repo-local noreply identity) and push only when the owner asks.
-- Local: `./scripts/setup-local.sh <admin-email>` then `npm run dev -- -p 3100`. Deploy: `./deploy.sh` (README §5).
+- Deploying from Windows: no local setup — run `deploy/vps.sh` on the server over SSH (README §5 "Deploying from Windows").
+  Local dev (only if asked): `./scripts/setup-local.sh <admin-email>` then `npm run dev -- -p 3100`.
 - Explain results in plain language; the owner is not a developer-tools expert.
