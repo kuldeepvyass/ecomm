@@ -16,7 +16,7 @@ Key rules (full list in docs/PROJECT_CONTEXT.md):
   Never put cost prices, users or orders in it (the repo is public).
 - Mobile first: the owner tests on a 384 px-wide Android phone — no horizontal overflow
   (use `grid-cols-1` / `minmax(0,1fr)` and `min-w-0` on grids).
-- Check work with `npx tsc --noEmit`, `npm run lint`, `npx vitest run`. Run `npm run test:e2e` only when asked.
+- Check work with `npm run typecheck`, `npm run lint`, `npx vitest run`. Run `npm run test:e2e` only when asked.
 - Commit (as the repo-local noreply identity) and push only when the owner asks.
 - Local: `./scripts/setup-local.sh <admin-email>` then `npm run dev -- -p 3100`. Deploy: `./deploy.sh` (README §5).
 - Explain results in plain language; the owner is not a developer-tools expert.

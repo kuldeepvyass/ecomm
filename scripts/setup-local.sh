@@ -83,6 +83,7 @@ step "Migrations and data"
 npx prisma migrate deploy >/dev/null
 DATABASE_URL="postgresql://postgres@localhost:$PG_PORT/maison_test" DIRECT_URL="postgresql://postgres@localhost:$PG_PORT/maison_test" npx prisma migrate deploy >/dev/null
 ok "schema up to date (dev + test databases)"
+npx next typegen >/dev/null 2>&1 || true   # Next's route types, needed by the typecheck on a fresh clone
 SEED_DEMO=0 npx prisma db seed 2>&1 | grep -E "Catalogue loaded|Seed complete" | sed 's/^/  /' || true
 ok "$("$PGBIN/psql" -h /tmp -p "$PG_PORT" -U postgres -d maison -tAc 'select count(*) from "Product" where "deletedAt" is null') watches in the local store"
 

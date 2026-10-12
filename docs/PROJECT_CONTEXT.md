@@ -50,7 +50,7 @@ The `ADMIN_EMAILS` address becomes admin on sign-in. For a customer, use any oth
 ## Commands
 | | |
 |---|---|
-| `npx tsc --noEmit` · `npm run lint` | typecheck · lint (0 errors expected; ~9 known warnings) |
+| `npm run typecheck` · `npm run lint` | typecheck (runs `next typegen` first — plain `tsc` fails on a fresh clone) · lint (0 errors; ~11 known warnings) |
 | `npx vitest run` | unit + integration (integration uses `maison_test`) — 58 tests |
 | `npm run catalog:export` | refresh `prisma/data/catalog.json` from the local DB (then commit) |
 | `npm run db:start` / `db:stop` | local PostgreSQL |

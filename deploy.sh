@@ -158,6 +158,7 @@ switch_to() { # atomically point `current` at a release and restart
 local_checks() {
   [ "$SKIP_CHECKS" = "1" ] && { warn "local checks skipped"; return; }
   step "Checking the code on this computer (typecheck, lint, unit tests)"
+  npx next typegen >/dev/null 2>&1 || true   # route types (PageProps…) don't exist on a fresh clone until generated
   npx tsc --noEmit || die "TypeScript errors — fix them or use --skip-checks."
   npx eslint --quiet . || die "Lint errors — fix them or use --skip-checks."
   npx vitest run tests/unit --reporter=dot >/dev/null || die "Unit tests failed — run 'npx vitest run tests/unit' to see why."
